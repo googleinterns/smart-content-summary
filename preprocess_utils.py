@@ -216,3 +216,29 @@ def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_t
             tsv_writer.writerow([sentences[i], summaries[i]])
     print("-------", len(sentences) - num_of_tuning_sam - num_of_valid_sam, "tuning samples wrote to", train_path,
           "-------")
+    
+    
+def delete_empty_entry(sentences, summaries):
+    """ Delete empty entries from the dataset.
+    
+        Args:
+         sentences: a column of input sentences.
+         summaries: a column of summaries corresponding to the sentences in the
+                   sentences column. 
+                   
+        Returns:
+         sentences: a column of input sentences with empty entries deleted 
+         summaries: a column of summaries with empty entries deleted
+    """
+    empty_index = []
+    for i, sentence in enumerate(sentences):
+        if sentence.split() == 0:
+            empty_index.append(i)
+    for i, sentence in enumerate(summaries):
+        if sentence.split() == 0:
+            empty_index.append(i)
+    for index in sorted(list(set(empty_index)), reverse=True):
+        del sentences[index]
+        del summaries[index]
+    
+    return sentences, summaries
