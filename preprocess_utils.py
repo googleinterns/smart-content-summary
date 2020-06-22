@@ -12,7 +12,6 @@ nltk.download('punkt')
 
 def text_strip(column):
     """Preprocess input texts.
-
     Args:
       column: one column of input texts.
       
@@ -53,7 +52,6 @@ def text_strip(column):
 
 def validate_dataset(sentences, summaries):
     """Validate that the dataset has same number of sentences and summaries, and that it does not contain empty entry.
-
         Args:
           sentences: one column of input texts.
           summaries: one column of summaries corresponding to sentences.
@@ -75,7 +73,6 @@ def calculate_stats(sentences, summaries):
     minimum number of words in original sentences and their summaries; average number of sentences in each input
     sentences and summaries; average number of words that are in the summary but not in the corresponding original
     sentence; and average compression ratio.
-
     Args:
       sentences: a column of input sentences.
       summaries: a column of summaries corresponding to the sentences in the
@@ -135,7 +132,6 @@ def calculate_stats(sentences, summaries):
 
 def tokenize_with_space(sentences):
     """Tokenize the input text with spaces separating the tokens.
-
     Args:
       sentences: a column of input sentences.
     
@@ -157,7 +153,6 @@ def tokenize_with_space(sentences):
 def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_tuning_sam, num_of_valid_sam,
                   whether_shuffle):
     """Split the dataset into training, tuning, and validation sets, and store each in a file.
-
         Args:
           train_path: path to store the training set.
           tune_path: path to store the tuning set.
@@ -182,21 +177,33 @@ def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_t
 
     validate_dataset(sentences, summaries)
 
+    sentence_shuffled = []
+    summary_shuffled = []
+
+    if num_of_tuning_sam + num_of_valid_sam > len(sentences):
+        raise Exception("The number of tuning and validation samples together exceeds the total sample size of " + str(
+            len(sentences)))
+
     if whether_shuffle:
         print("-------Shuffling the dataset-------")
         sentence_shuffled = []
         summary_shuffled = []
         index_shuffled = list(range(len(sentences)))
         random.shuffle(index_shuffled)
-        for i in index_shuffled:
-            sentence_shuffled.append(sentences[i])
-            summary_shuffled.append(summaries[i])
-        sentences = sentence_shuffled
-        summaries = summary_shuffled
+    else:
+        tune_shuffled = list(range(num_of_tuning_sam))
+        random.shuffle(tune_shuffled)
+        valid_shuffled = list(range(num_of_tuning_sam, num_of_tuning_sam + num_of_valid_sam))
+        random.shuffle(valid_shuffled)
+        train_shuffled = list(range(num_of_tuning_sam + num_of_valid_sam, len(sentences)))
+        random.shuffle(train_shuffled)
+        index_shuffled = tune_shuffled + valid_shuffled + train_shuffled
 
-    if num_of_tuning_sam + num_of_valid_sam > len(sentences):
-        raise Exception("The number of tuning and validation samples together exceeds the total sample size of " + str(
-            len(sentences)))
+    for i in index_shuffled:
+        sentence_shuffled.append(sentences[i])
+        summary_shuffled.append(summaries[i])
+    sentences = sentence_shuffled
+    summaries = summary_shuffled
 
     with open(os.path.expanduser(tune_path), 'wt') as out_file:
         tsv_writer = csv.writer(out_file, delimiter='\t')
@@ -216,8 +223,8 @@ def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_t
             tsv_writer.writerow([sentences[i], summaries[i]])
     print("-------", len(sentences) - num_of_tuning_sam - num_of_valid_sam, "tuning samples wrote to", train_path,
           "-------")
-    
-    
+
+
 def delete_empty_entry(sentences, summaries):
     """ Delete empty entries from the dataset.
         Args:
@@ -239,6 +246,6 @@ def delete_empty_entry(sentences, summaries):
     for index in empty_index:
         del sentences[index]
         del summaries[index]
-    
+
     print("-------Deleted", len(empty_index), "empty entries-------")
     return sentences, summaries

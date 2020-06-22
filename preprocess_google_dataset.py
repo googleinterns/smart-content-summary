@@ -85,18 +85,7 @@ def __format_data():
         f.close()
 
     cleaned_summaries = preprocess_utils.text_strip(summaries)
-
-    empty_index = []
-    for i, sentence in enumerate(cleaned_sentences):
-        if sentence.split() == 0:
-            empty_index.append(i)
-    for i, sentence in enumerate(cleaned_summaries):
-        if sentence.split() == 0:
-            empty_index.append(i)
-    for index in sorted(list(set(empty_index)), reverse=True):
-        del cleaned_sentences[index]
-        del cleaned_summaries[index]
-
+    cleaned_sentences, cleaned_summaries = preprocess_utils.delete_empty_entry(cleaned_sentences, cleaned_summaries)
     preprocess_utils.validate_dataset(cleaned_sentences, cleaned_summaries)
     print("Number of samples is", len(cleaned_sentences))
 
@@ -104,6 +93,7 @@ def __format_data():
 
 
 def main(argv):
+    """Preprocess the Google dataset."""
     if len(argv) != 2:
         raise Exception("Usage: python preprocess_google_dataset num_of_tuning_samples num_of_validation_samples")
 
@@ -115,9 +105,6 @@ def main(argv):
 
     if num_of_tuning_sam < 0 or num_of_valid_sam < 0:
         raise Exception("The number of training sample and tuning sample must be non-negative")
-
-    if num_of_tuning_sam + num_of_valid_sam > 210000:
-        raise Exception("The number of tuning and validation samples together exceeds the total sample size of 210,000")
 
     if not os.path.isfile(os.path.expanduser(PREPROCESSED_FILE_PATH)):
         __clean_up()
