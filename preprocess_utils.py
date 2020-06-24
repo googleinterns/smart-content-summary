@@ -26,24 +26,31 @@ def text_strip(column):
         row = re.sub("(\\n)", ' ', str(row))
 
         # remove redundant special characters
-        row = re.sub("(__+)", ' ', str(row))
-        row = re.sub("(--+)", ' ', str(row))
-        row = re.sub("(~~+)", ' ', str(row))
-        row = re.sub("(\+\++)", ' ', str(row))
-        row = re.sub("(\.\.+)", ' ', str(row))
+        row = re.sub("(__+)", '_', str(row))
+        row = re.sub("(--+)", '-', str(row))
+        row = re.sub("(~~+)", '~', str(row))
+        row = re.sub("(\+\++)", '+', str(row))
+        row = re.sub("(\.\.+)", '.', str(row))
+        row = re.sub("(\:\:+)", ':', str(row))
 
-        # remove - at end of words(not between)
-        row = re.sub("(\-\s+)", ' ', str(row))
-        # remove : at end of words(not between)
-        row = re.sub("(\:\s+)", ' ', str(row))
-        # remove any single charecters hanging between 2 spaces
-        row = re.sub("(\s+.\s+)", ' ', str(row))
+        # remove - at end or beginning of string (not in the middle)
+        row = re.sub("(\-\s*$)", '', str(row))
+        row = re.sub("(^\s*\-)", '', str(row))
+        # remove : at end or beginning of string (not in the middle)
+        row = re.sub("(\:\s*$)", '', str(row))
+        row = re.sub("(^\s*\:)", '', str(row))
+        # remove _ at end or beginning of string (not in the middle)
+        row = re.sub("(_\s*$)", '', str(row))
+        row = re.sub("(^\s*_)", '', str(row))
+        # remove ~ at end of string (not in the middle or beginning)
+        row = re.sub("(~\s*$)", '', str(row))
+        # remove . at beginning of string (not in the middle or end)
+        row = re.sub("(^\s*\.)", '', str(row))
+
 
         # remove multiple spaces
         row = re.sub("(\s+)", ' ', str(row))
 
-        # remove any single charecters hanging between 2 spaces
-        row = re.sub("(\s+.\s+)", ' ', str(row))
 
         cleaned_col.append(row)
 
