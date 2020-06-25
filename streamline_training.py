@@ -14,6 +14,7 @@
 
 import argparse
 import os
+import socket
 import subprocess
 
 
@@ -121,7 +122,7 @@ def __preprocess(args):
                     cwd=lasertagger_dir)
 
 
-def __training():
+def __training(args):
     """ Train the LaserTagger model."""
     print("------ Start training ------")
     f = open(output_dir + "/train.tf_record.num_examples.txt", "r")
@@ -134,22 +135,55 @@ def __training():
     print("number of training epochs is", num_train_epochs)
     print("warm up proportion is", warmup_proportion)
 
-    subprocess.call(("python run_lasertagger.py --training_file=" + output_dir + "/train.tf_record" +
-                     " --eval_file=" + output_dir + "/tune.tf_record" +
-                     " --label_map_file=" + output_dir + "/label_map.txt" +
-                     " --model_config_file=" + lasertagger_dir + "/configs/lasertagger_config.json" +
-                     " --output_dir=" + output_dir + "/model" +
-                     " --init_checkpoint=" + bert_dir + "/bert_model.ckpt" +
-                     " --do_train=true" +
-                     " --do_eval=true" +
-                     " --save_checkpoints_steps=500" +
-                     " --num_train_examples=" + num_train_examples +
-                     " --num_eval_examples=" + num_tune_examples +
-                     " --train_batch_size=" + train_batch_size +
-                     " --learning_rate=" + learning_rate +
-                     " --num_train_epochs=" + num_train_epochs +
-                     " --warmup_proportion" + warmup_proportion).split(),
-                    cwd=lasertagger_dir)
+    training_command = "python run_lasertagger.py" + \
+                         " --do_train=true" + \
+                         " --do_eval=true" + \
+                         " --save_checkpoints_steps=500" + \
+                         " --num_train_examples=" + num_train_examples +\
+                         " --num_eval_examples=" + num_tune_examples + \
+                         " --train_batch_size=" + train_batch_size + \
+                         " --learning_rate=" + learning_rate + \
+                         " --num_train_epochs=" + num_train_epochs + \
+                         " --warmup_proportion" + warmup_proportion 
+    if args.use_tpu:
+        print("Running on cloud TPU")
+        bucket_name = args.gbucket
+        tpu_name = socket.gethostname()
+        folder_name = output_dir.split("/")[-1]
+        folder_in_bucket = "gs://" + bucket_name + "/" + folder_name
+        training_command += " --label_map_file=" + folder_in_bucket + "/label_map.txt" + \
+                         " --model_config_file=" + folder_in_bucket + "/lasertagger_config.json" + \
+                         " --init_checkpoint=" + folder_in_bucket + "/bert/bert_model.ckpt" + \
+                         " --output_dir=" + folder_in_bucket + "/model" + \
+                         " --training_file=" + folder_in_bucket + "/train.tf_record" + \
+                         " --eval_file=" + folder_in_bucket + "/tune.tf_record" + \
+                         " --use_tpu=true" + \
+                         " --tpu_name=" +  tpu_name
+        subprocess.call(("gsutil -m cp -r " + output_dir + "/label_map.txt " + 
+                         folder_in_bucket + "/").split(), cwd=os.path.expanduser("~"))
+        subprocess.call(("gsutil -m cp -r " + lasertagger_dir + "/configs/lasertagger_config.json " + 
+                         folder_in_bucket + "/").split(), cwd=os.path.expanduser("~"))
+        subprocess.call(("gsutil -m cp -r " + bert_dir + "/* " +  
+                         folder_in_bucket + "/bert/").split(), cwd=os.path.expanduser("~"))
+        subprocess.call(("gsutil -m cp -r " + output_dir + "/train.tf_record " + 
+                         folder_in_bucket + "/").split(), cwd=os.path.expanduser("~"))
+        subprocess.call(("gsutil -m cp -r " + output_dir + "/tune.tf_record " + 
+                         folder_in_bucket + "/").split(), cwd=os.path.expanduser("~")) 
+    else:
+        print("Running locally")
+        training_command += " --label_map_file=" + output_dir + "/label_map.txt" + \
+                         " --model_config_file=" + lasertagger_dir + "/configs/lasertagger_config.json" + \
+                         " --init_checkpoint=" + bert_dir + "/bert_model.ckpt" + \
+                         " --output_dir=" + output_dir + "/model" + \
+                         " --training_file=" + output_dir + "/train.tf_record" + \
+                         " --eval_file=" + output_dir + "/tune.tf_record"
+    
+    subprocess.call(training_command.split(), cwd=lasertagger_dir)
+    
+    if args.use_tpu:
+        subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model ./" + folder_name).split(), 
+                        cwd=os.path.expanduser("~"))
+    
 
     print("------ Completed training ------")
     print("------ Start exporting ------")
@@ -192,10 +226,17 @@ if __name__ == "__main__":
                         help="Proportion of training to perform linear learning rate warmup for", default=0.1)
     parser.add_argument("-max_input_examples", type=int,
                         help="number of training examples to use in the vocab optimization")
-    parser.add_argument("-train", action="store_true", help="if added, skip preprocessing and start training")
+    parser.add_argument("-train", action="store_true", help="If added, skip preprocessing and start training")
     parser.add_argument("-export", action="store_true",
-                        help="if added, skip preprocessing and training, and start exporting to bucket")
+                        help="If added, skip preprocessing and training, and start exporting to bucket")
+    
+    parser.add_argument("-use_tpu", action="store_true", help="If added, will use tpu for training")
+    parser.add_argument("-gbucket", help="The gcp bucket where cloud TPU will store outputs to")
+    
     args = parser.parse_args()
+    
+    if args.use_tpu and (args.gbucket is None):
+        parser.error("-use_tpu requires -gbucket.")
 
     __set_parameters(args)
     __validate_folders(args)
@@ -207,11 +248,11 @@ if __name__ == "__main__":
         __export_to_bucket()
     elif args.train:
         print("------ Skipped preprocessing ------")
-        __training()
+        __training(args)
         __export_to_bucket()
     else:
         subprocess.call(['mkdir', os.path.expanduser(args.model_output_dir)], cwd=os.path.expanduser('~'))
         print("------Made new directory", args.model_output_dir, "------")
         __preprocess(args)
-        __training()
+        __training(args)
         __export_to_bucket()
