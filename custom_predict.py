@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import csv
 import os
 import subprocess
@@ -20,14 +21,18 @@ import sys
 import nltk
 import preprocess_utils
 
-TMP_FOLDER_NAME = "tmp_custom_predict"
-TMP_FOLDER_PATH = "~/" + TMP_FOLDER_NAME
+TEMP_FOLDER_NAME = "temp_custom_predict"
+TEMP_FOLDER_PATH = "~/" + TEMP_FOLDER_NAME
 
 
 def __download_models(list_of_models):
     """Download trained models from Google Cloud Bucket.
     Args:
         list_of_models: a list of trained models
+    Returns:
+        None
+    Raise:
+        Exception: if the specified trained model does not exist at the GCP storage bucket 
     """
     for model in list_of_models:
         if os.path.isdir(model):
@@ -44,32 +49,35 @@ def __download_models(list_of_models):
                                 "Currently, trained models include: GG_500_AR, GG_800_AR, GG_1100_AR, MS_500_AR, MS_800_AR, MS_1100_AR.")
 
 
-def __download_scripts():
-    """Download LaserTagger and Bert scripts."""
+def __validate_scripts(args):
+    """Download LaserTagger and Bert scripts, and validate input file.
+    Args:
+        args: Command line arguments
+    Returns: 
+        None
+    Raises:
+        Exception: If intput file path does not exist
+        Exception: If LaserTagger folder does not exist
+        Exception: If "bert" folder does not exist within the LaserTagger folder
+        Exception: If pretrained Bert model is not found
+    """
     nltk.download('punkt')
-    # download bert
-    if not os.path.isdir("bert_vocab.txt"):
-        print("-------downloading bert vocab-------")
-        subprocess.check_output(['gsutil', 'cp', "gs://trained_models_yechen/bert_vocab.txt", "./"],
-                                cwd=os.path.expanduser('~'))
-        print("-------completed downloading bert vocab-------")
-    else:
-        print("-------bert vocab exists-------")
-    # git clone scripts
-    if not os.path.isdir("lasertagger"):
-        print("-------downloading lasertagger-------")
-        subprocess.check_output(['git', 'clone', 'https://github.com/google-research/lasertagger.git'],
-                                cwd=os.path.expanduser('~'))
-        subprocess.check_output(['git', 'clone', 'https://github.com/google-research/bert.git', './lasertagger/bert'],
-                                cwd=os.path.expanduser('~'))
-        print("-------completed downloading bert-------")
-    else:
-        print("-------scripts exist-------")
+    
+    if not os.path.isfile(os.path.expanduser(args.path_to_input_file)):
+        raise Exception("Input file not found.")
+    
+    if not os.path.isdir(os.path.expanduser(args.abs_path_to_lasertagger)):
+        raise Exception("LaserTagger not found.")
+    if not os.path.isdir(os.path.expanduser(args.abs_path_to_lasertagger + "/bert")):
+        raise Exception("Bert not found inside the LaserTagger folder.")
+
+    if not os.path.isdir(os.path.expanduser(args.abs_path_to_bert)):
+        raise Exception("Pretrained Bert model not found.")
 
 
 def __clean_up():
     """Clean up the temporary folder. """
-    subprocess.call(['rm', '-rf', TMP_FOLDER_NAME], cwd=os.path.expanduser('~'))
+    subprocess.call(['rm', '-rf', TEMP_FOLDER_NAME], cwd=os.path.expanduser('~'))
 
 
 def __preprocess_input(input_file_path, whether_score):
@@ -77,6 +85,10 @@ def __preprocess_input(input_file_path, whether_score):
     Args:
         input_file_path: the absolute path to the input file
         whether_score: whether scoring is needed. If scoring is needed, two columns are expected in the input file.
+    Returns: 
+        None
+    Raises:
+        Exception: If scoring is required, but target is not found in the input file
     """
     if not os.path.isfile(os.path.expanduser(input_file_path)):
         __clean_up()
@@ -94,6 +106,8 @@ def __preprocess_input(input_file_path, whether_score):
                 summaries.append(row[1])
             except IndexError:
                 raise Exception("Whether_score is true. Expected target but only found one column in the input.")
+                tsv_file.close()
+    tsv_file.close()
 
     cleaned_sentences = preprocess_utils.text_strip(sentences)
     if whether_score:
@@ -112,50 +126,55 @@ def __preprocess_input(input_file_path, whether_score):
 
     preprocess_utils.delete_empty_entry(spaced_sentences, spaced_summaries)
 
-    with open(os.path.expanduser(TMP_FOLDER_PATH + "/cleaned_data.tsv"), 'wt') as out_file:
+    with open(os.path.expanduser(TEMP_FOLDER_PATH + "/cleaned_data.tsv"), 'wt') as out_file:
         tsv_writer = csv.writer(out_file, delimiter='\t')
         for i, sentence in enumerate(spaced_sentences):
             tsv_writer.writerow([sentence, spaced_summaries[i]])
     print("-------Number of input is", len(spaced_sentences), "-------")
 
 
-def main(whether_score, input_file_path, list_of_models):
+def main(args):
     """
+    Compute predictions and scores for inputs using specified BERT model and LaserTagger model. 
+    
     Read input sentences from input_file_path, convert the sentences to predicted summaries using pretrained
     models whose names are specified in the list_of_models, and compute exact score and SARI score if whether_score is
     true. The predictions are stored in an output file pred.tsv. If scores are computed, the scores are stored in
     an output file score.tsv.
-    Args:
-        whether_score: whether score needs to be computed
-        input_file_path: the absolute path to the tsv file that contains input sentences
-        list_of_models: the list of the names of the pretrained LaserTagger models
+    
+    Returns:
+        None
     """
 
+    whether_score = args.score
+    input_file_path = args.path_to_input_file
+    list_of_models = args.models
+    
     __download_models(list_of_models)
-    __download_scripts()
+    __validate_scripts(args)
 
     __clean_up()
-    subprocess.call(['mkdir', TMP_FOLDER_NAME], cwd=os.path.expanduser('~'))
+    subprocess.call(['mkdir', TEMP_FOLDER_NAME], cwd=os.path.expanduser('~'))
     __preprocess_input(input_file_path, whether_score)
 
     # calculate and print predictions to output file 
     for model in list_of_models:
         print("------Running on model", model, "-------")
-        subprocess.call(['python', 'lasertagger/predict_main.py',
+        subprocess.call(['python', os.path.expanduser(args.abs_path_to_lasertagger) + '/predict_main.py',
                          "--input_format=wikisplit",
                          "--label_map_file=./" + model + "/label_map.txt",
-                         "--input_file=" + "./" + TMP_FOLDER_NAME + "/cleaned_data.tsv",
+                         "--input_file=" + "./" + TEMP_FOLDER_NAME + "/cleaned_data.tsv",
                          "--saved_model=./" + model + "/export_model",
-                         "--vocab_file=bert_vocab.txt",
-                         "--output_file=" + "./" + TMP_FOLDER_NAME + "/output_" + model + ".tsv"],
-                        cwd=os.path.expanduser('~'))
+                         "--vocab_file=" + os.path.expanduser(args.abs_path_to_bert) + "/vocab.txt",
+                         "--output_file=" + "./" + TEMP_FOLDER_NAME + "/output_" + model + ".tsv"],
+                        cwd=os.path.expanduser("~"))
         print("------Completed running on model", model, "-------")
 
     output_row_list = []
 
     model = list_of_models[0]
     output_row = ["original"]
-    tsv_file = open(os.path.expanduser(TMP_FOLDER_PATH + "/output_" + model + ".tsv"))
+    tsv_file = open(os.path.expanduser(TEMP_FOLDER_PATH + "/output_" + model + ".tsv"))
     read_tsv = csv.reader(tsv_file, delimiter="\t")
     for row in read_tsv:
         output_row.append(row[0])
@@ -163,7 +182,7 @@ def main(whether_score, input_file_path, list_of_models):
 
     for model in list_of_models:
         output_row = [model]
-        tsv_file = open(os.path.expanduser(TMP_FOLDER_PATH + "/output_" + model + ".tsv"))
+        tsv_file = open(os.path.expanduser(TEMP_FOLDER_PATH + "/output_" + model + ".tsv"))
         read_tsv = csv.reader(tsv_file, delimiter="\t")
         for row in read_tsv:
             output_row.append(row[1])
@@ -182,9 +201,9 @@ def main(whether_score, input_file_path, list_of_models):
     if whether_score:
         for model in list_of_models:
             print("------Calculating score for model", model, "-------")
-            f = open(os.path.expanduser(TMP_FOLDER_PATH + "/score_" + model + ".txt"), "w")
-            subprocess.call(['python', 'lasertagger/score_main.py',
-                             "--prediction_file=" + "./" + TMP_FOLDER_NAME + "/output_" + model + ".tsv"],
+            f = open(os.path.expanduser(TEMP_FOLDER_PATH + "/score_" + model + ".txt"), "w")
+            subprocess.call(['python', os.path.expanduser(args.abs_path_to_lasertagger) + '/score_main.py',
+                             "--prediction_file=" + "./" + TEMP_FOLDER_NAME + "/output_" + model + ".tsv"],
                             cwd=os.path.expanduser('~'), stdout=f)
 
         output_row_list = []
@@ -193,7 +212,7 @@ def main(whether_score, input_file_path, list_of_models):
 
         for model in list_of_models:
             output_row = [model]
-            f = open(os.path.expanduser(TMP_FOLDER_PATH + "/score_" + model + ".txt"))
+            f = open(os.path.expanduser(TEMP_FOLDER_PATH + "/score_" + model + ".txt"))
             lines = f.readlines()
             for line in lines:
                 output_row.append(line.split()[2])
@@ -212,28 +231,32 @@ def main(whether_score, input_file_path, list_of_models):
 
 
 if __name__ == "__main__":
-    """ Usage: python custom_predict.py whether_score(true or false) path/to/the_input_file.tsv 'Name-of-Model-1' "
-            "'Name-of-Model-2' ..."""
-    argv = sys.argv[1,:]
-    if len(argv) < 3:
-        raise Exception(
-            "Usage: python custom_predict.py whether_score(true or false) path/to/the_input_file.tsv 'Name-of-Model-1' "
-            "'Name-of-Model-2' ...")
+    """
+    usage: custom_predict.py [-h] [-score] path_to_input_file abs_path_to_lasertagger abs_path_to_bert models [models ...]
 
-    whether_score_argv = argv[0]
-    if whether_score_argv == "true":
-        whether_score_argv = True
-    elif whether_score_argv == "false":
-        whether_score_argv = False
-    else:
-        raise Exception(
-            "whether_score should be true or false. Usage: python custom_predict.py whether_score(true or false) "
-            "path/to/the_input_file.tsv 'Name-of-Model-1' 'Name-of-Model-2' ...")
+    positional arguments:
+      path_to_input_file    the directory of the model output
+      abs_path_to_lasertagger
+                            absolute path to the folder where the lasertagger scripts are located
+      abs_path_to_bert      absolute path to the folder where the pretrained BERT is located
+      models                the name of trained models
 
-    input_file_path_argv = argv[1]
-    list_of_models_argv = argv[2:]
-    if len(list_of_models_argv) == 0:
-        raise Exception(
-            "Need to provide at least one model. Usage: python custom_predict.py whether_score(true or false) "
-            "path/to/the_input_file.tsv 'Name-of-Model-1' 'Name-of-Model-2' ...")
-    main(whether_score_argv, input_file_path_argv, list_of_models_argv)
+    optional arguments:
+      -h, --help            show help message and exit
+      -score                if added, compute scores for the predictions
+    
+    Args:
+        whether_score: whether score needs to be computed
+        input_file_path: the absolute path to the tsv file that contains input sentences
+        list_of_models: the list of the names of the pretrained LaserTagger models
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("path_to_input_file", help="the directory of the model output")
+    parser.add_argument("abs_path_to_lasertagger", help="absolute path to the folder where the lasertagger scripts are located")
+    parser.add_argument("abs_path_to_bert", help="absolute path to the folder where the pretrained BERT is located")
+    parser.add_argument('models', help="the name of trained models", nargs='+')
+    
+    parser.add_argument("-score", action="store_true", help="if added, compute scores for the predictions")
+    args = parser.parse_args()
+    
+    main(args)
