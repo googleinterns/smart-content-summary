@@ -187,6 +187,15 @@ def main(args):
         for row in read_tsv:
             output_row.append(row[1])
         output_row_list.append(output_row)
+   
+    if whether_score:
+        model = list_of_models[0]
+        output_row = ["original"]
+        tsv_file = open(os.path.expanduser(TEMP_FOLDER_PATH + "/output_" + model + ".tsv"))
+        read_tsv = csv.reader(tsv_file, delimiter="\t")
+        for row in read_tsv:
+            output_row.append(row[2])
+        output_row_list.append(output_row)
 
     with open(os.path.expanduser("~/pred.tsv"), 'wt') as out_file:
         tsv_writer = csv.writer(out_file, delimiter='\t')
