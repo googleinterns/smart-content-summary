@@ -23,51 +23,49 @@ nltk.download('punkt')
 """Utilities for preprocessing input texts for LaserTagger."""
 
 
-def text_strip(column):
-    """Preprocess input texts.
+def text_strip(input_array):
+    """Remove redundant special characters and escape characters from input text."""
     Args:
-      column: one column of input texts.
+      input_array: array of input texts.
       
     Returns:
-      the cleaned version of the text column.
+      the cleaned version of the text input array.
     """
-    cleaned_col = []
-    for row in column:
+    cleaned_array = []
+    for text in input_array:
         # remove escape characters
-        row = re.sub("(\\t)", ' ', str(row))
-        row = re.sub("(\\r)", ' ', str(row))
-        row = re.sub("(\\n)", ' ', str(row))
+        text = re.sub("(\\t)", ' ', str(text))
+        text = re.sub("(\\r)", ' ', str(text))
+        text = re.sub("(\\n)", ' ', str(text))
 
         # remove redundant special characters
-        row = re.sub("(__+)", '_', str(row))
-        row = re.sub("(--+)", '-', str(row))
-        row = re.sub("(~~+)", '~', str(row))
-        row = re.sub("(\+\++)", '+', str(row))
-        row = re.sub("(\.\.+)", '.', str(row))
-        row = re.sub("(\:\:+)", ':', str(row))
+        text = re.sub("(__+)", '_', str(text))
+        text = re.sub("(--+)", '-', str(text))
+        text = re.sub("(~~+)", '~', str(text))
+        text = re.sub("(\+\++)", '+', str(text))
+        text = re.sub("(\.\.+)", '.', str(text))
+        text = re.sub("(\:\:+)", ':', str(text))
 
         # remove - at end or beginning of string (not in the middle)
-        row = re.sub("(\-\s*$)", '', str(row))
-        row = re.sub("(^\s*\-)", '', str(row))
+        text = re.sub("(\-\s*$)", '', str(text))
+        text = re.sub("(^\s*\-)", '', str(text))
         # remove : at end or beginning of string (not in the middle)
-        row = re.sub("(\:\s*$)", '', str(row))
-        row = re.sub("(^\s*\:)", '', str(row))
+        text = re.sub("(\:\s*$)", '', str(text))
+        text = re.sub("(^\s*\:)", '', str(text))
         # remove _ at end or beginning of string (not in the middle)
-        row = re.sub("(_\s*$)", '', str(row))
-        row = re.sub("(^\s*_)", '', str(row))
+        text = re.sub("(_\s*$)", '', str(text))
+        text = re.sub("(^\s*_)", '', str(text))
         # remove ~ at end of string (not in the middle or beginning)
-        row = re.sub("(~\s*$)", '', str(row))
+        text = re.sub("(~\s*$)", '', str(text))
         # remove . at beginning of string (not in the middle or end)
-        row = re.sub("(^\s*\.)", '', str(row))
-
+        text = re.sub("(^\s*\.)", '', str(text))
 
         # remove multiple spaces
-        row = re.sub("(\s+)", ' ', str(row))
+        text = re.sub("(\s+)", ' ', str(text))
 
+        cleaned_array.append(text)
 
-        cleaned_col.append(row)
-
-    return cleaned_col
+    return cleaned_array
 
 
 def validate_dataset(sentences, summaries):
@@ -89,10 +87,12 @@ def validate_dataset(sentences, summaries):
 
 
 def calculate_stats(sentences, summaries):
-    """For the input sentences and their corresponding summaries, calculate relevant statistics: average, maximum, and
-    minimum number of words in original sentences and their summaries; average number of sentences in each input
-    sentences and summaries; average number of words that are in the summary but not in the corresponding original
-    sentence; and average compression ratio.
+    """Calculate relevant statistics for the input sentences and their corresponding summaries.
+    
+    Relevant statistics include: average, maximum, and minimum number of words in original sentences and their 
+    summaries; average number of sentences in each input sentences and summaries; average number of words that are 
+    in the summary but not in the corresponding original sentence; and average compression ratio.
+    
     Args:
       sentences: a column of input sentences.
       summaries: a column of summaries corresponding to the sentences in the
@@ -161,17 +161,14 @@ def tokenize_with_space(sentences):
     spaced_sentences = []
     for sentence in sentences:
         tokens = nltk.word_tokenize(sentence)
-        spaced_sentence = ""
-        for j in range(len(tokens) - 1):
-            spaced_sentence += tokens[j] + " "
-        spaced_sentence += tokens[-1]
+        spaced_sentence = " ".join(tokens)
         spaced_sentences.append(spaced_sentence)
 
     return spaced_sentences
 
 
 def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_tuning_sam, num_of_valid_sam,
-                  whether_shuffle):
+                  whether_shuffle_entire_set, whether_shuffle_individual_file):
     """Split the dataset into training, tuning, and validation sets, and store each in a file.
         Args:
           train_path: path to store the training set.
@@ -180,8 +177,9 @@ def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_t
           preprocessed_path: path where the preprocessed dataset is store.
           num_of_tuning_sam: number of tuning samples.
           num_of_valid_sam: number of validation samples.
-          whether_shuffle: whether the dataset needs to be shuffled before splitting.
-
+          whether_shuffle_entire_set: whether the dataset needs to be shuffled before splitting.
+          whether_shuffle_individual_file: whether the dataset needs to be shuffled after splitting.
+           
         Side effects:
           Training set is stored in the path specified by train_path.
           Tuning set is stored in the path specified by tune_path.
@@ -204,13 +202,14 @@ def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_t
         raise Exception("The number of tuning and validation samples together exceeds the total sample size of " + str(
             len(sentences)))
 
-    if whether_shuffle:
-        print("-------Shuffling the dataset-------")
+    if whether_shuffle_entire_set:
+        print("-------Shuffling the entire dataset-------")
         sentence_shuffled = []
         summary_shuffled = []
         index_shuffled = list(range(len(sentences)))
         random.shuffle(index_shuffled)
-    else:
+    elif whether_shuffle_individual_file:
+        print("-------Shuffling tuning, training, and testing set separately-------")
         tune_shuffled = list(range(num_of_tuning_sam))
         random.shuffle(tune_shuffled)
         valid_shuffled = list(range(num_of_tuning_sam, num_of_tuning_sam + num_of_valid_sam))
@@ -218,6 +217,8 @@ def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_t
         train_shuffled = list(range(num_of_tuning_sam + num_of_valid_sam, len(sentences)))
         random.shuffle(train_shuffled)
         index_shuffled = tune_shuffled + valid_shuffled + train_shuffled
+    else:
+        index_shuffled = list(range(len(sentences)))
 
     for i in index_shuffled:
         sentence_shuffled.append(sentences[i])
@@ -259,8 +260,8 @@ def delete_empty_entry(sentences, summaries):
     for i, sentence in enumerate(sentences):
         if len(sentence.split()) == 0:
             empty_index.append(i)
-    for i, sentence in enumerate(summaries):
-        if len(sentence.split()) == 0:
+    for i, summary in enumerate(summaries):
+        if len(summary.split()) == 0:
             empty_index.append(i)
     empty_index = sorted(list(set(empty_index)), reverse=True)
     for index in empty_index:
