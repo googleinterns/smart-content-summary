@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import argparse
 import csv
 import os
 import subprocess
@@ -39,17 +40,25 @@ def __download_data():
         print("-------Downloading dataset-------")
         subprocess.call("git clone https://github.com/google-research-datasets/sentence-compression.git ".split(),
                         cwd=os.path.expanduser('~'))
-
-        print("-------Unzipping dataset-------")
-        for i in range(1, 11):
-            subprocess.call(["gunzip", "sent-comp.train" + str(i).zfill(2) + ".json.gz"],
-                            cwd=os.path.expanduser(DATASET_DIR))
-        subprocess.call("gunzip comp-data.eval.json.gz".split(), cwd=os.path.expanduser(DATASET_DIR))
+        __unzip_data(DATASET_DIR)
     else:
         print("-------Updating dataset-------")
-        subprocess.call("git pull".split(), cwd=os.path.expanduser("~/" + DATASET_NAME))
-
+        output = subprocess.check_output("git pull".split(), cwd=os.path.expanduser("~/" + DATASET_NAME))
+        if output != b"Already up-to-date.\n":
+            __unzip_data(DATASET_DIR)
     print("-------Dataset up to date-------")
+
+
+def __unzip_data(dataset_dir):
+    """Unzip files in the Google dataset.
+    Args:
+        dataset_dir: the directory where the Google dataset is in.
+    """
+    print("-------Unzipping dataset-------")
+    for i in range(1, 11):
+        subprocess.call(["gunzip", "sent-comp.train" + str(i).zfill(2) + ".json.gz"],
+                        cwd=os.path.expanduser(dataset_dir))
+    subprocess.call("gunzip comp-data.eval.json.gz".split(), cwd=os.path.expanduser(dataset_dir))
 
 
 def __format_data():
@@ -107,17 +116,16 @@ def __format_data():
 
 def main(argv):
     """Preprocess the Google dataset."""
-    if len(argv) != 2:
-        raise Exception("Usage: python preprocess_google_dataset num_of_tuning_samples num_of_validation_samples")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
+    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
 
-    try:
-        num_of_tuning_sam = int(argv[0])
-        num_of_valid_sam = int(argv[1])
-    except ValueError:
+    args = parser.parse_args()
+    num_of_tuning_sam = args.num_of_tuning
+    num_of_valid_sam = args.num_of_validation
+
+    if num_of_valid_sam < 0 or num_of_tuning_sam < 0:
         raise Exception("Number of samples must be non-negative integers")
-
-    if num_of_tuning_sam < 0 or num_of_valid_sam < 0:
-        raise Exception("The number of training sample and tuning sample must be non-negative")
 
     if not os.path.isfile(os.path.expanduser(PREPROCESSED_FILE_PATH)):
         __clean_up()
@@ -139,7 +147,8 @@ def main(argv):
         print("-------Preprocessed data exists. Now splitting dataset.-------")
 
     preprocess_utils.split_dataset(TRAIN_FILE_PATH, TUNE_FILE_PATH, VALID_FILE_PATH, PREPROCESSED_FILE_PATH,
-                                   num_of_tuning_sam, num_of_valid_sam, whether_shuffle=True)
+                                   num_of_tuning_sam, num_of_valid_sam, whether_shuffle_entire_set=True,
+                                   whether_shuffle_individual_file=True)
 
 
 if __name__ == "__main__":

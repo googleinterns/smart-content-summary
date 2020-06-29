@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import argparse
 import csv
 import os
 import sys
@@ -27,16 +28,15 @@ VALID_FILE_PATH = "~/valid_reddit_dataset.tsv"
 
 def main(argv):
     """ Preprocess the Reddit dataset."""
-    if len(argv) != 2:
-        raise Exception("Usage: python preprocess_reddit_dataset num_of_tuning_samples num_of_validation_samples")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
+    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
 
-    try:
-        num_of_tuning_sam = int(argv[0])
-        num_of_valid_sam = int(argv[1])
-    except ValueError:
-        raise Exception("Number of samples must be non-negative integers")
-    
-    if num_of_tuning_sam < 0 or num_of_valid_sam < 0:
+    args = parser.parse_args()
+    num_of_tuning_sam = args.num_of_tuning
+    num_of_valid_sam = args.num_of_validation
+
+    if num_of_valid_sam < 0 or num_of_tuning_sam < 0:
         raise Exception("Number of samples must be non-negative integers")
 
     if not os.path.isfile(os.path.expanduser(PREPROCESSED_FILE_PATH)):
@@ -72,7 +72,8 @@ def main(argv):
         print("-------Preprocessed data exists. Now splitting dataset.-------")
     print("-------Now splitting dataset.-------")
     preprocess_utils.split_dataset(TRAIN_FILE_PATH, TUNE_FILE_PATH, VALID_FILE_PATH, PREPROCESSED_FILE_PATH,
-                                   num_of_tuning_sam, num_of_valid_sam, whether_shuffle=False)
+                                   num_of_tuning_sam, num_of_valid_sam, whether_shuffle_entire_set=False,
+                                   whether_shuffle_individual_file=True)
 
 
 if __name__ == "__main__":

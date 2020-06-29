@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import argparse
 import csv
 import os
 import sys
@@ -27,31 +28,34 @@ VALID_FILE_PATH = "~/valid_news_dataset.tsv"
 
 def main(argv):
     """Preprocess the news dataset."""
-    if len(argv) != 4:
-        raise Exception(
-            "Usage: python preprocess_news_dataset absolute_path_to_dir_containing_news_summary.csv "
-            "absolute_path_to_dir_containing_news_summary_more.csv num_of_tuning_samples num_of_validation_samples")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("news_summary_path", help="Absolute path to the news_summary.csv")
+    parser.add_argument("news_summary_more_path", help="Absolute path to the news_summary_more.csv")
+    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
+    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
 
-    data_dir_1 = argv[0] + "/news_summary.csv"
-    data_dir_2 = argv[1] + "/news_summary_more.csv"
+    args = parser.parse_args()
 
-    try:
-        num_of_tuning_sam = int(argv[2])
-        num_of_valid_sam = int(argv[3])
-    except ValueError:
+    num_of_tuning_sam = args.num_of_tuning
+    num_of_valid_sam = args.num_of_validation
+
+    if num_of_valid_sam < 0 or num_of_tuning_sam < 0:
         raise Exception("Number of samples must be non-negative integers")
 
+    data_file_1 = args.news_summary_path
+    data_file_2 = args.news_summary_more_path
+
     if not os.path.isfile(os.path.expanduser(PREPROCESSED_FILE_PATH)):
-        if not os.path.isfile(os.path.expanduser(data_dir_1)):
+        if not os.path.isfile(os.path.expanduser(data_file_1)):
             raise Exception("Cannot find" + os.path.expanduser(
-                data_dir_1) + ". If necessary, please download from https://www.kaggle.com/sunnysai12345/news-summary")
+                data_file_1) + ". If necessary, please download from https://www.kaggle.com/sunnysai12345/news-summary")
 
-        if not os.path.isfile(os.path.expanduser(data_dir_2)):
+        if not os.path.isfile(os.path.expanduser(data_file_2)):
             raise Exception("Cannot find" + os.path.expanduser(
-                data_dir_2) + ". If necessary, please download from https://www.kaggle.com/sunnysai12345/news-summary")
+                data_file_2) + ". If necessary, please download from https://www.kaggle.com/sunnysai12345/news-summary")
 
-        dataset1 = (pd.read_csv(data_dir_1, encoding='iso-8859-1')).iloc[:, 0:6].copy()
-        dataset2 = (pd.read_csv(data_dir_2, encoding='iso-8859-1')).iloc[:, 0:2].copy()
+        dataset1 = (pd.read_csv(data_file_1, encoding='iso-8859-1')).iloc[:, 0:6].copy()
+        dataset2 = (pd.read_csv(data_file_2, encoding='iso-8859-1')).iloc[:, 0:2].copy()
 
         dataset = pd.DataFrame()
         dataset['sentences'] = pd.concat([dataset1['text'], dataset2['text']], ignore_index=True)
@@ -80,7 +84,8 @@ def main(argv):
         print("-------Preprocessed data exists. Now splitting dataset.-------")
     print("-------Now splitting dataset.-------")
     preprocess_utils.split_dataset(TRAIN_FILE_PATH, TUNE_FILE_PATH, VALID_FILE_PATH, PREPROCESSED_FILE_PATH,
-                                   num_of_tuning_sam, num_of_valid_sam, whether_shuffle=False)
+                                   num_of_tuning_sam, num_of_valid_sam, whether_shuffle_entire_set=False,
+                                   whether_shuffle_individual_file=True)
 
 
 if __name__ == "__main__":
