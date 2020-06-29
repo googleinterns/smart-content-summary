@@ -17,7 +17,7 @@ import csv
 import os
 import subprocess
 import sys
-
+import language_tool_python
 import nltk
 import preprocess_utils
 
@@ -149,6 +149,7 @@ def main(args):
     whether_score = args.score
     input_file_path = args.path_to_input_file
     list_of_models = args.models
+    whether_grammar = args.grammar
     
     __download_models(list_of_models)
     __validate_scripts(args)
@@ -187,10 +188,20 @@ def main(args):
         for row in read_tsv:
             output_row.append(row[1])
         output_row_list.append(output_row)
+    
+    if whether_grammar:
+        tool = language_tool_python.LanguageTool('en-US')
+        for model in list_of_models:
+            output_row = [model + "_corrected"]
+            tsv_file = open(os.path.expanduser(TEMP_FOLDER_PATH + "/output_" + model + ".tsv"))
+            read_tsv = csv.reader(tsv_file, delimiter="\t")
+            for row in read_tsv:
+                output_row.append(tool.correct(row[1]))
+            output_row_list.append(output_row)
    
     if whether_score:
         model = list_of_models[0]
-        output_row = ["original"]
+        output_row = ["target"]
         tsv_file = open(os.path.expanduser(TEMP_FOLDER_PATH + "/output_" + model + ".tsv"))
         read_tsv = csv.reader(tsv_file, delimiter="\t")
         for row in read_tsv:
@@ -242,17 +253,16 @@ def main(args):
 if __name__ == "__main__":
     """
     usage: custom_predict.py [-h] [-score] path_to_input_file abs_path_to_lasertagger abs_path_to_bert models [models ...]
-
     positional arguments:
       path_to_input_file    the directory of the model output
       abs_path_to_lasertagger
                             absolute path to the folder where the lasertagger scripts are located
       abs_path_to_bert      absolute path to the folder where the pretrained BERT is located
       models                the name of trained models
-
     optional arguments:
       -h, --help            show help message and exit
       -score                if added, compute scores for the predictions
+      -grammar              if added, automatically apply grammar check on predictions
     
     Args:
         whether_score: whether score needs to be computed
@@ -266,6 +276,7 @@ if __name__ == "__main__":
     parser.add_argument('models', help="the name of trained models", nargs='+')
     
     parser.add_argument("-score", action="store_true", help="if added, compute scores for the predictions")
+    parser.add_argument("-grammar", action="store_true", help="if added, automatically apply grammar check on predictions")
     args = parser.parse_args()
     
     main(args)
