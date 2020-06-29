@@ -35,6 +35,9 @@ def main(argv):
         num_of_valid_sam = int(argv[1])
     except ValueError:
         raise Exception("Number of samples must be non-negative integers")
+    
+    if num_of_tuning_sam < 0 or num_of_valid_sam < 0:
+        raise Exception("Number of samples must be non-negative integers")
 
     if not os.path.isfile(os.path.expanduser(PREPROCESSED_FILE_PATH)):
         ds = tfds.load('reddit_tifu', split='train', shuffle_files=True)
