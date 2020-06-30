@@ -15,6 +15,7 @@ import csv
 import os
 import random
 import re
+from typing import List, Tuple, Text
 
 import nltk
 import numpy as np
@@ -23,16 +24,17 @@ nltk.download('punkt')
 """Utilities for preprocessing input texts for LaserTagger."""
 
 
-def text_strip(input_array):
-    """Remove redundant special characters and escape characters from input text."""
+def text_strip(input_list: List[Text]) -> List[Text]:
+    """Remove redundant special characters and escape characters from input text.
+
     Args:
-      input_array: array of input texts.
+      input_list: list of input texts.
       
     Returns:
-      the cleaned version of the text input array.
+      cleaned_list: the cleaned version of the text input list.
     """
-    cleaned_array = []
-    for text in input_array:
+    cleaned_list = []
+    for text in input_list:
         # remove escape characters
         text = re.sub("(\\t)", ' ', str(text))
         text = re.sub("(\\r)", ' ', str(text))
@@ -63,16 +65,17 @@ def text_strip(input_array):
         # remove multiple spaces
         text = re.sub("(\s+)", ' ', str(text))
 
-        cleaned_array.append(text)
+        cleaned_list.append(text)
 
-    return cleaned_array
+    return cleaned_list
 
 
-def validate_dataset(sentences, summaries):
+def validate_dataset(sentences: List[Text], summaries: List[Text]):
     """Validate that the dataset has same number of sentences and summaries, and that it does not contain empty entry.
+
         Args:
-          sentences: one column of input texts.
-          summaries: one column of summaries corresponding to sentences.
+          sentences: a list of input texts.
+          summaries: a list of summaries corresponding to sentences.
     """
     if len(sentences) != len(summaries):
         raise Exception("The number of original sentences does not match the number of summaries.")
@@ -86,7 +89,7 @@ def validate_dataset(sentences, summaries):
             raise Exception("Summaries contains empty examples.")
 
 
-def calculate_stats(sentences, summaries):
+def calculate_stats(sentences: List[Text], summaries: List[Text]):
     """Calculate relevant statistics for the input sentences and their corresponding summaries.
     
     Relevant statistics include: average, maximum, and minimum number of words in original sentences and their 
@@ -94,9 +97,8 @@ def calculate_stats(sentences, summaries):
     in the summary but not in the corresponding original sentence; and average compression ratio.
     
     Args:
-      sentences: a column of input sentences.
-      summaries: a column of summaries corresponding to the sentences in the
-                  sentences column. 
+      sentences: a list of input sentences.
+      summaries: a list of summaries corresponding to the sentences in the sentences list.
     """
 
     print("-------Calculating statistics-------")
@@ -150,13 +152,14 @@ def calculate_stats(sentences, summaries):
           "{:.2f}".format(np.std(compression_ratio)), ")")
 
 
-def tokenize_with_space(sentences):
+def tokenize_with_space(sentences: List[Text]) -> List[Text]:
     """Tokenize the input text with spaces separating the tokens.
+
     Args:
-      sentences: a column of input sentences.
+      sentences: a list of input sentences.
     
     Returns:
-      a column of tokenized texts with spaces separating the tokens.
+      spaced_sentences: a list of tokenized texts with spaces separating the tokens.
     """
     spaced_sentences = []
     for sentence in sentences:
@@ -167,23 +170,24 @@ def tokenize_with_space(sentences):
     return spaced_sentences
 
 
-def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_tuning_sam, num_of_valid_sam,
-                  whether_shuffle_entire_set, whether_shuffle_individual_file):
+def split_dataset(train_path: Text, tune_path: Text, valid_path: Text, preprocessed_path: Text,
+                  num_of_tuning_sam: int, num_of_valid_sam: int,
+                  whether_shuffle_entire_set: bool, whether_shuffle_individual_file: bool):
     """Split the dataset into training, tuning, and validation sets, and store each in a file.
+
+        Training set is stored in the path specified by train_path.
+        Tuning set is stored in the path specified by tune_path.
+        Validation set is stored in the path specified by valid_path.
+
         Args:
-          train_path: path to store the training set.
-          tune_path: path to store the tuning set.
-          valid_path: path to store the validation set.
-          preprocessed_path: path where the preprocessed dataset is store.
+          train_path: absolute path to store the training set.
+          tune_path: absolute path to store the tuning set.
+          valid_path: absolute path to store the validation set.
+          preprocessed_path: absolute path where the preprocessed dataset is store.
           num_of_tuning_sam: number of tuning samples.
           num_of_valid_sam: number of validation samples.
           whether_shuffle_entire_set: whether the dataset needs to be shuffled before splitting.
           whether_shuffle_individual_file: whether the dataset needs to be shuffled after splitting.
-           
-        Side effects:
-          Training set is stored in the path specified by train_path.
-          Tuning set is stored in the path specified by tune_path.
-          Validation set is stored in the path specified by valid_path.
     """
     sentences = []
     summaries = []
@@ -246,15 +250,16 @@ def split_dataset(train_path, tune_path, valid_path, preprocessed_path, num_of_t
           "-------")
 
 
-def delete_empty_entry(sentences, summaries):
+def delete_empty_entry(sentences: List[Text], summaries: List[Text]) -> Tuple[List[Text], List[Text]]:
     """ Delete empty entries from the dataset.
+
         Args:
-         sentences: a column of input sentences.
-         summaries: a column of summaries corresponding to the sentences in the
-                   sentences column. 
+         sentences: a list of input sentences.
+         summaries: a list of summaries corresponding to the sentences in the sentences list.
+
         Returns:
-         sentences: a column of input sentences with empty entries deleted 
-         summaries: a column of summaries with empty entries deleted
+         sentences: a list of input sentences with empty entries deleted
+         summaries: a list of summaries with empty entries deleted
     """
     empty_index = []
     for i, sentence in enumerate(sentences):

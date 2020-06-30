@@ -14,9 +14,10 @@
 import argparse
 import csv
 import os
-import sys
 
 import preprocess_utils
+
+""" Preprocess the Microsoft text summarization dataset."""
 
 GRADING_COMMENTS = ["Most important meaning Flawless language", "Most important meaning Minor errors", \
                     "Most important meaning Disfluent or incomprehensible", "Much meaning Flawless language", \
@@ -33,15 +34,15 @@ VALID_FILE_PATH = "~/valid_MS_dataset.tsv"
 
 
 def __process_row(row):
-    """Split a row into the original sentence, its corresponding summary or summaries and corresponding ratings of the
-    summary or summaries.
+    """Split a row into the original sentence, its corresponding summary and its rating.
+
     Args:
-        row: a row in the MS dataset
+        row: a row in the MS dataset tsv file.
     Returns:
         current_original_sentence: the original sentence of the row
         current_shortened_sentences_list: a list of summaries corresponding to the current_original_sentence
-        current_shortened_ratings_list: the ratings of the summaries in current_shortened_sentences_list
-        count_excluded: number of summaries excluded on the row due to low ratings
+        current_shortened_ratings_list: the a list of ratings of the summaries in current_shortened_sentences_list
+        count_excluded: number of summaries excluded in the row due to low ratings
     """
     count_excluded = 0
     row_flattened = []
@@ -62,8 +63,8 @@ def __process_row(row):
             this_shortened_sentence_rating.append(row_flattened[i])
             this_shortened_sentence_rating = this_shortened_sentence_rating[2:]
             if len(this_shortened_sentence_rating) == 0 or \
-                    len(set(this_shortened_sentence_rating).intersection(set(EXCLUSION_NUMBER))) / len(
-                this_shortened_sentence_rating) < 0.5:
+                    len(set(this_shortened_sentence_rating).intersection(set(EXCLUSION_NUMBER))) / \
+                    len(this_shortened_sentence_rating) < 0.5:
                 current_shortened_sentences_list.append(this_shortened_sentence)
                 current_shortened_ratings_list.append(this_shortened_sentence_rating)
             else:
@@ -72,8 +73,8 @@ def __process_row(row):
         elif not row_flattened[i].isnumeric() and not row_flattened[i].split(";")[0].isnumeric():
             this_shortened_sentence_rating = this_shortened_sentence_rating[2:]
             if len(this_shortened_sentence_rating) == 0 or \
-                    len(set(this_shortened_sentence_rating).intersection(set(EXCLUSION_NUMBER))) / len(
-                this_shortened_sentence_rating) < 0.5:
+                    len(set(this_shortened_sentence_rating).intersection(set(EXCLUSION_NUMBER))) / \
+                    len(this_shortened_sentence_rating) < 0.5:
                 current_shortened_sentences_list.append(this_shortened_sentence)
                 current_shortened_ratings_list.append(this_shortened_sentence_rating)
                 this_shortened_sentence = row_flattened[i]
@@ -88,6 +89,7 @@ def __process_row(row):
 
 def __process_file(file_path):
     """Process a tsv file in the MS dataset.
+
     Args:
         file_path: direct path to the tsv file
     Returns:
@@ -115,15 +117,15 @@ def __process_file(file_path):
     return sentences, summaries, ratings, count_excluded
 
 
-def main(argv):
-    """Preprocess the Microsoft dataset."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("raw_data_dir", help="Absolute path to the RawData directory in the MS dataset.")
-    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
-    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
+def main(args):
+    """Preprocess the Microsoft text summarization dataset.
 
-    args = parser.parse_args()
+    Args:
+        args: command line arguments.
+    """
     data_dir = args.raw_data_dir
+    if not os.path.isdir(os.path.expanduser(data_dir)):
+        raise Exception("Data directory not found.")
 
     num_of_tuning_sam = args.num_of_tuning
     num_of_valid_sam = args.num_of_validation
@@ -170,4 +172,29 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    """
+    Preprocess the Microsoft text summarization dataset.
+    
+    Data needs to be downloaded from https://www.microsoft.com/en-us/download/details.aspx?id=54262 and the abosolute
+    path to the dataset directory is provided as a command line argument.
+
+    Dataset is split into training, tuning, and validation sets, with the number of samples in the tuning and validation
+    set being specified in the command line argument. The three sets are saved in three separate tsv files, and all the
+    preprocessed data are saved in another tsv file.
+    
+    usage: preprocess_MS_dataset.py [-h] raw_data_dir num_of_tuning num_of_validation
+
+    positional arguments:
+      raw_data_dir       Absolute path to the RawData directory in the MS dataset.
+      num_of_tuning      Number of tuning samples
+      num_of_validation  Number of validation samples
+    
+    optional arguments:
+      -h, --help         show this help message and exit
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("raw_data_dir", help="Absolute path to the RawData directory in the MS dataset.")
+    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
+    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
+    arguments = parser.parse_args()
+    main(arguments)

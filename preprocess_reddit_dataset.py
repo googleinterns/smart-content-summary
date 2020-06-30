@@ -20,19 +20,16 @@ import tensorflow_datasets as tfds
 
 import preprocess_utils
 
+""" Preprocess Tensorflow Reddit datast."""
+
 PREPROCESSED_FILE_PATH = "~/preprocessed_reddit_dataset.tsv"
 TRAIN_FILE_PATH = "~/train_reddit_dataset.tsv"
 TUNE_FILE_PATH = "~/tune_reddit_dataset.tsv"
 VALID_FILE_PATH = "~/valid_reddit_dataset.tsv"
 
 
-def main(argv):
+def main(args):
     """ Preprocess the Reddit dataset."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
-    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
-
-    args = parser.parse_args()
     num_of_tuning_sam = args.num_of_tuning
     num_of_valid_sam = args.num_of_validation
 
@@ -77,4 +74,26 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    """
+    Preprocess the Tensorflow Reddit dataset.
+
+    See more details about the dataset on https://www.tensorflow.org/datasets/catalog/reddit.
+
+    Dataset is split into training, tuning, and validation sets, with the number of samples in the tuning and validation
+    set being specified in the command line argument. The three sets are saved in three separate tsv files, and all the
+    preprocessed data are saved in another tsv file.
+
+    usage: preprocess_reddit_dataset.py [-h] num_of_tuning num_of_validation
+
+    positional arguments:
+      num_of_tuning      Number of tuning samples
+      num_of_validation  Number of validation samples
+
+    optional arguments:
+      -h, --help         show this help message and exit
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
+    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
+    arguments = parser.parse_args()
+    main(arguments)

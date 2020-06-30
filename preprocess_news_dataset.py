@@ -20,22 +20,20 @@ import pandas as pd
 
 import preprocess_utils
 
+"""Preprocess news summarization dataset. """
+
 PREPROCESSED_FILE_PATH = "~/preprocessed_news_dataset.tsv"
 TRAIN_FILE_PATH = "~/train_news_dataset.tsv"
 TUNE_FILE_PATH = "~/tune_news_dataset.tsv"
 VALID_FILE_PATH = "~/valid_news_dataset.tsv"
 
 
-def main(argv):
-    """Preprocess the news dataset."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("news_summary_path", help="Absolute path to the news_summary.csv")
-    parser.add_argument("news_summary_more_path", help="Absolute path to the news_summary_more.csv")
-    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
-    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
+def main(args):
+    """Preprocess the news dataset.
 
-    args = parser.parse_args()
-
+    Args:
+        args: command line arguments.
+    """
     num_of_tuning_sam = args.num_of_tuning
     num_of_valid_sam = args.num_of_validation
 
@@ -60,8 +58,6 @@ def main(argv):
         dataset = pd.DataFrame()
         dataset['sentences'] = pd.concat([dataset1['text'], dataset2['text']], ignore_index=True)
         dataset['summaries'] = pd.concat([dataset1['headlines'], dataset2['headlines']], ignore_index=True)
-
-        dataset.head(2)
 
         cleaned_sentences = preprocess_utils.text_strip(dataset['sentences'])
         cleaned_summaries = preprocess_utils.text_strip(dataset['summaries'])
@@ -89,4 +85,32 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    """
+    Preprocess the news summarization dataset.
+
+    Data needs to be downloaded from https://www.kaggle.com/sunnysai12345/news-summary as two csv files news_summary.csv 
+    and news_summary_more.csv. The absolute path to these two files are provided as command line arguments.
+
+    Dataset is split into training, tuning, and validation sets, with the number of samples in the tuning and validation
+    set being specified in the command line argument. The three sets are saved in three separate tsv files, and all the
+    preprocessed data are saved in another tsv file.
+
+    usage: preprocess_news_dataset.py [-h] news_summary_path news_summary_more_path num_of_tuning num_of_validation
+
+    positional arguments:
+      news_summary_path     Absolute path to the news_summary.csv
+      news_summary_more_path
+                            Absolute path to the news_summary_more.csv
+      num_of_tuning         Number of tuning samples
+      num_of_validation     Number of validation samples
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("news_summary_path", help="Absolute path to the news_summary.csv")
+    parser.add_argument("news_summary_more_path", help="Absolute path to the news_summary_more.csv")
+    parser.add_argument("num_of_tuning", help="Number of tuning samples", type=int)
+    parser.add_argument("num_of_validation", help="Number of validation samples", type=int)
+    arguments = parser.parse_args()
+    main(arguments)
