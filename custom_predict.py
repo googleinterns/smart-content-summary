@@ -16,22 +16,25 @@ import argparse
 import csv
 import os
 import subprocess
-import sys
+
 import language_tool_python
 import nltk
 import preprocess_utils
 
+"""Use trained LaserTagger model to make predictions."""
+
 TEMP_FOLDER_NAME = "temp_custom_predict"
 TEMP_FOLDER_PATH = "~/" + TEMP_FOLDER_NAME
+GCP_BUCKET = "gs://trained_models_yechen/"
 
 
 def __download_models(list_of_models):
     """Download trained models from Google Cloud Bucket.
+
     Args:
         list_of_models: a list of trained models
-    Returns:
-        None
-    Raise:
+
+    Raises:
         Exception: if the specified trained model does not exist at the GCP storage bucket 
     """
     for model in list_of_models:
@@ -40,21 +43,21 @@ def __download_models(list_of_models):
         else:
             print("-------downloading model", model, "-------")
             try:
-                os.environ["model_name"] = "gs://trained_models_yechen/" + model
-                subprocess.call(['gsutil', '-m', 'cp', '-r', "gs://trained_models_yechen/" + model, "./"],
+                os.environ["model_name"] = GCP_BUCKET + model
+                subprocess.call(['gsutil', '-m', 'cp', '-r', GCP_BUCKET + model, "./"],
                                 cwd=os.path.expanduser('~'))
             except:
                 raise Exception("Model", model,
-                                "download failed. Check whether this model exists in the folder gs://trained_models_yechen",
+                                "download failed. Check whether this model exists in the folder" + GCP_BUCKET,
                                 "Currently, trained models include: GG_500_AR, GG_800_AR, GG_1100_AR, MS_500_AR, MS_800_AR, MS_1100_AR.")
 
 
 def __validate_scripts(args):
     """Download LaserTagger and Bert scripts, and validate input file.
+
     Args:
         args: Command line arguments
-    Returns: 
-        None
+
     Raises:
         Exception: If intput file path does not exist
         Exception: If LaserTagger folder does not exist
@@ -62,10 +65,10 @@ def __validate_scripts(args):
         Exception: If pretrained Bert model is not found
     """
     nltk.download('punkt')
-    
+
     if not os.path.isfile(os.path.expanduser(args.path_to_input_file)):
         raise Exception("Input file not found.")
-    
+
     if not os.path.isdir(os.path.expanduser(args.abs_path_to_lasertagger)):
         raise Exception("LaserTagger not found.")
     if not os.path.isdir(os.path.expanduser(args.abs_path_to_lasertagger + "/bert")):
@@ -82,11 +85,11 @@ def __clean_up():
 
 def __preprocess_input(input_file_path, whether_score):
     """Preprocess the input sentences to fit the format of lasertagger input.
+
     Args:
         input_file_path: the absolute path to the input file
         whether_score: whether scoring is needed. If scoring is needed, two columns are expected in the input file.
-    Returns: 
-        None
+
     Raises:
         Exception: If scoring is required, but target is not found in the input file
     """
@@ -105,8 +108,8 @@ def __preprocess_input(input_file_path, whether_score):
             try:
                 summaries.append(row[1])
             except IndexError:
-                raise Exception("Whether_score is true. Expected target but only found one column in the input.")
                 tsv_file.close()
+                raise Exception("Whether_score is true. Expected target but only found one column in the input.")
     tsv_file.close()
 
     cleaned_sentences = preprocess_utils.text_strip(sentences)
@@ -141,16 +144,16 @@ def main(args):
     models whose names are specified in the list_of_models, and compute exact score and SARI score if whether_score is
     true. The predictions are stored in an output file pred.tsv. If scores are computed, the scores are stored in
     an output file score.tsv.
-    
-    Returns:
-        None
+
+    Args:
+        args: command line arguments.
     """
 
     whether_score = args.score
     input_file_path = args.path_to_input_file
     list_of_models = args.models
     whether_grammar = args.grammar
-    
+
     __download_models(list_of_models)
     __validate_scripts(args)
 
@@ -188,7 +191,7 @@ def main(args):
         for row in read_tsv:
             output_row.append(row[1])
         output_row_list.append(output_row)
-    
+
     if whether_grammar:
         tool = language_tool_python.LanguageTool('en-US')
         for model in list_of_models:
@@ -198,7 +201,7 @@ def main(args):
             for row in read_tsv:
                 output_row.append(tool.correct(row[1]))
             output_row_list.append(output_row)
-   
+
     if whether_score:
         model = list_of_models[0]
         output_row = ["target"]
@@ -251,8 +254,10 @@ def main(args):
 
 
 if __name__ == "__main__":
-    """
-    usage: custom_predict.py [-h] [-score] path_to_input_file abs_path_to_lasertagger abs_path_to_bert models [models ...]
+    """Compute predictions and scores for inputs using specified BERT model and LaserTagger model. 
+    
+    usage: custom_predict.py [-h] [-score] path_to_input_file abs_path_to_lasertagger 
+                                           abs_path_to_bert models [models ...]
     positional arguments:
       path_to_input_file    the directory of the model output
       abs_path_to_lasertagger
@@ -263,20 +268,17 @@ if __name__ == "__main__":
       -h, --help            show help message and exit
       -score                if added, compute scores for the predictions
       -grammar              if added, automatically apply grammar check on predictions
-    
-    Args:
-        whether_score: whether score needs to be computed
-        input_file_path: the absolute path to the tsv file that contains input sentences
-        list_of_models: the list of the names of the pretrained LaserTagger models
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("path_to_input_file", help="the directory of the model output")
-    parser.add_argument("abs_path_to_lasertagger", help="absolute path to the folder where the lasertagger scripts are located")
+    parser.add_argument("abs_path_to_lasertagger",
+                        help="absolute path to the folder where the lasertagger scripts are located")
     parser.add_argument("abs_path_to_bert", help="absolute path to the folder where the pretrained BERT is located")
     parser.add_argument('models', help="the name of trained models", nargs='+')
-    
+
     parser.add_argument("-score", action="store_true", help="if added, compute scores for the predictions")
-    parser.add_argument("-grammar", action="store_true", help="if added, automatically apply grammar check on predictions")
-    args = parser.parse_args()
-    
-    main(args)
+    parser.add_argument("-grammar", action="store_true",
+                        help="if added, automatically apply grammar check on predictions")
+    arguments = parser.parse_args()
+
+    main(arguments)

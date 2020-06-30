@@ -17,10 +17,15 @@ import os
 import socket
 import subprocess
 
+"""Train LaserTagger model and export to GCP bucket."""
+
+GCP_BUCKET = "gs://trained_models_yechen/"
+
 
 def __validate_folders(args):
     """ Validate that the output_dir does not exist if it is starting from preprocessing. Validate that the folder
      containing LaserTagger scripts and Bert scripts and pretrained BERT exists.
+
      Args:
          args: the command line arguments
      """
@@ -39,8 +44,9 @@ def __validate_folders(args):
 
 def __validate_files(file):
     """ Validate that a file exists.
+
     Args:
-        file: abosolute file path
+        file: absolute file path
     """
     if not os.path.isfile(os.path.expanduser(file)):
         raise Exception("File " + str(file) + " not found/")
@@ -48,35 +54,30 @@ def __validate_files(file):
 
 def __set_parameters(args):
     """ Set global variables based on the args.
+
     Args:
         args: command line arguments
     """
-    global vocab_size
+    global vocab_size, train_batch_size, learning_rate, num_train_epochs, warmup_proportion
     vocab_size = str(args.vocab_size)
-    global train_batch_size
     train_batch_size = str(args.train_batch_size)
-    global learning_rate
     learning_rate = str(args.learning_rate)
-    global num_train_epochs
     num_train_epochs = str(args.num_train_epochs)
-    global warmup_proportion
     warmup_proportion = str(args.warmup_proportion)
 
-    global output_dir
+    global output_dir, bert_dir, lasertagger_dir
     output_dir = os.path.expanduser(args.model_output_dir)
-    global bert_dir
     bert_dir = os.path.expanduser(args.abs_path_to_bert)
-    global lasertagger_dir
     lasertagger_dir = os.path.expanduser(args.abs_path_to_lasertagger)
 
-    global training_file
+    global training_file, tuning_file
     training_file = os.path.expanduser(args.training_file)
-    global tuning_file
     tuning_file = os.path.expanduser(args.tuning_file)
 
 
 def __preprocess(args):
     """ Preprocess training data.
+
     Args:
         args: command line arguments
     """
@@ -92,7 +93,7 @@ def __preprocess(args):
         else:
             raise Exception("max input example > training data count")
     else:
-        max_input_examples = str(int(num_training / 3))
+        max_input_examples = str(int(num_training))
 
     print("number of maximum input is", max_input_examples)
     print("number of vocab size is", vocab_size)
@@ -136,15 +137,15 @@ def __training(args):
     print("warm up proportion is", warmup_proportion)
 
     training_command = "python run_lasertagger.py" + \
-                         " --do_train=true" + \
-                         " --do_eval=true" + \
-                         " --save_checkpoints_steps=500" + \
-                         " --num_train_examples=" + num_train_examples +\
-                         " --num_eval_examples=" + num_tune_examples + \
-                         " --train_batch_size=" + train_batch_size + \
-                         " --learning_rate=" + learning_rate + \
-                         " --num_train_epochs=" + num_train_epochs + \
-                         " --warmup_proportion" + warmup_proportion 
+                       " --do_train=true" + \
+                       " --do_eval=true" + \
+                       " --save_checkpoints_steps=500" + \
+                       " --num_train_examples=" + num_train_examples + \
+                       " --num_eval_examples=" + num_tune_examples + \
+                       " --train_batch_size=" + train_batch_size + \
+                       " --learning_rate=" + learning_rate + \
+                       " --num_train_epochs=" + num_train_epochs + \
+                       " --warmup_proportion" + warmup_proportion
     if args.use_tpu:
         print("Running on cloud TPU")
         bucket_name = args.gbucket
@@ -152,38 +153,37 @@ def __training(args):
         folder_name = output_dir.split("/")[-1]
         folder_in_bucket = "gs://" + bucket_name + "/" + folder_name
         training_command += " --label_map_file=" + folder_in_bucket + "/label_map.txt" + \
-                         " --model_config_file=" + folder_in_bucket + "/lasertagger_config.json" + \
-                         " --init_checkpoint=" + folder_in_bucket + "/bert/bert_model.ckpt" + \
-                         " --output_dir=" + folder_in_bucket + "/model" + \
-                         " --training_file=" + folder_in_bucket + "/train.tf_record" + \
-                         " --eval_file=" + folder_in_bucket + "/tune.tf_record" + \
-                         " --use_tpu=true" + \
-                         " --tpu_name=" +  tpu_name
-        subprocess.call(("gsutil -m cp -r " + output_dir + "/label_map.txt " + 
+                            " --model_config_file=" + folder_in_bucket + "/lasertagger_config.json" + \
+                            " --init_checkpoint=" + folder_in_bucket + "/bert/bert_model.ckpt" + \
+                            " --output_dir=" + folder_in_bucket + "/model" + \
+                            " --training_file=" + folder_in_bucket + "/train.tf_record" + \
+                            " --eval_file=" + folder_in_bucket + "/tune.tf_record" + \
+                            " --use_tpu=true" + \
+                            " --tpu_name=" + tpu_name
+        subprocess.call(("gsutil -m cp -r " + output_dir + "/label_map.txt " +
                          folder_in_bucket + "/").split(), cwd=os.path.expanduser("~"))
-        subprocess.call(("gsutil -m cp -r " + lasertagger_dir + "/configs/lasertagger_config.json " + 
+        subprocess.call(("gsutil -m cp -r " + lasertagger_dir + "/configs/lasertagger_config.json " +
                          folder_in_bucket + "/").split(), cwd=os.path.expanduser("~"))
-        subprocess.call(("gsutil -m cp -r " + bert_dir + "/* " +  
+        subprocess.call(("gsutil -m cp -r " + bert_dir + "/* " +
                          folder_in_bucket + "/bert/").split(), cwd=os.path.expanduser("~"))
-        subprocess.call(("gsutil -m cp -r " + output_dir + "/train.tf_record " + 
+        subprocess.call(("gsutil -m cp -r " + output_dir + "/train.tf_record " +
                          folder_in_bucket + "/").split(), cwd=os.path.expanduser("~"))
-        subprocess.call(("gsutil -m cp -r " + output_dir + "/tune.tf_record " + 
-                         folder_in_bucket + "/").split(), cwd=os.path.expanduser("~")) 
+        subprocess.call(("gsutil -m cp -r " + output_dir + "/tune.tf_record " +
+                         folder_in_bucket + "/").split(), cwd=os.path.expanduser("~"))
     else:
         print("Running locally")
         training_command += " --label_map_file=" + output_dir + "/label_map.txt" + \
-                         " --model_config_file=" + lasertagger_dir + "/configs/lasertagger_config.json" + \
-                         " --init_checkpoint=" + bert_dir + "/bert_model.ckpt" + \
-                         " --output_dir=" + output_dir + "/model" + \
-                         " --training_file=" + output_dir + "/train.tf_record" + \
-                         " --eval_file=" + output_dir + "/tune.tf_record"
-    
+                            " --model_config_file=" + lasertagger_dir + "/configs/lasertagger_config.json" + \
+                            " --init_checkpoint=" + bert_dir + "/bert_model.ckpt" + \
+                            " --output_dir=" + output_dir + "/model" + \
+                            " --training_file=" + output_dir + "/train.tf_record" + \
+                            " --eval_file=" + output_dir + "/tune.tf_record"
+
     subprocess.call(training_command.split(), cwd=lasertagger_dir)
-    
+
     if args.use_tpu:
-        subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model ./" + folder_name).split(), 
+        subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model ./" + folder_name).split(),
                         cwd=os.path.expanduser("~"))
-    
 
     print("------ Completed training ------")
     print("------ Start exporting ------")
@@ -201,15 +201,60 @@ def __export_to_bucket():
     """ Export the LaserTagger model to the GCP bucket trained_models_yechen. """
     print("------ Exporting to bucket ------")
     folder_name = output_dir.split("/")[-1]
-    subprocess.call(("gsutil -m cp -r " + output_dir + "/export/export_model gs://trained_models_yechen/" +
+    subprocess.call(("gsutil -m cp -r " + output_dir + "/export/export_model " + GCP_BUCKET +
                      folder_name + "/").split(), cwd=os.path.expanduser("~"))
-    subprocess.call(("gsutil -m cp -r " + output_dir + "/label_map.txt gs://trained_models_yechen/" + folder_name +
+    subprocess.call(("gsutil -m cp -r " + output_dir + "/label_map.txt " + GCP_BUCKET + folder_name +
                      "/").split(), cwd=os.path.expanduser("~"))
 
 
 if __name__ == "__main__":
     """ Streamline the preprocessing, training, and exporting process of the LaserTagger model using the hyperparameters
-    in the command line arguments."""
+    in the command line arguments.
+    
+    usage: streamline_training.py [-h] [-vocab_size VOCAB_SIZE]
+                              [-train_batch_size TRAIN_BATCH_SIZE]
+                              [-learning_rate LEARNING_RATE]
+                              [-num_train_epochs NUM_TRAIN_EPOCHS]
+                              [-warmup_proportion WARMUP_PROPORTION]
+                              [-max_input_examples MAX_INPUT_EXAMPLES]
+                              [-train] [-export] [-use_tpu] [-gbucket GBUCKET]
+                              model_output_dir abs_path_to_lasertagger
+                              abs_path_to_bert training_file tuning_file
+    
+    positional arguments:
+      model_output_dir      the directory of the model output
+      abs_path_to_lasertagger
+                            absolute path to the folder where the lasertagger
+                            scripts are located
+      abs_path_to_bert      absolute path to the folder where the pretrained BERT
+                            is located
+      training_file         path to training samples
+      tuning_file           path to tuning samples
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      -vocab_size VOCAB_SIZE
+                            vocab size. default = 500
+      -train_batch_size TRAIN_BATCH_SIZE
+                            batch size during training. default = 32
+      -learning_rate LEARNING_RATE
+                            The initial learning rate for Adam. default = 3e-5
+      -num_train_epochs NUM_TRAIN_EPOCHS
+                            Total number of training epochs to perform. default =
+                            3
+      -warmup_proportion WARMUP_PROPORTION
+                            Proportion of training to perform linear learning rate
+                            warmup for. default = 0.1
+      -max_input_examples MAX_INPUT_EXAMPLES
+                            number of training examples to use in the vocab
+                            optimization. default is all training data.
+      -train                If added, skip preprocessing and start training
+      -export               If added, skip preprocessing and training, and start
+                            exporting to bucket
+      -use_tpu              If added, will use tpu for training
+      -gbucket GBUCKET      The gcp bucket where cloud TPU will store intermediary
+                            outputs to
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("model_output_dir", help="the directory of the model output")
     parser.add_argument("abs_path_to_lasertagger",
@@ -218,23 +263,24 @@ if __name__ == "__main__":
     parser.add_argument("training_file", help="path to training samples")
     parser.add_argument("tuning_file", help="path to tuning samples")
 
-    parser.add_argument("-vocab_size", type=int, help="vocab size", default=500)
-    parser.add_argument("-train_batch_size", type=int, help="batch size during training", default=32)
-    parser.add_argument("-learning_rate", type=float, help="The initial learning rate for Adam", default=3e-5)
-    parser.add_argument("-num_train_epochs", type=int, help="Total number of training epochs to perform", default=3)
+    parser.add_argument("-vocab_size", type=int, help="vocab size. default = 500", default=500)
+    parser.add_argument("-train_batch_size", type=int, help="batch size during training. default = 32", default=32)
+    parser.add_argument("-learning_rate", type=float, help="The initial learning rate for Adam. default = 3e-5", default=3e-5)
+    parser.add_argument("-num_train_epochs", type=int, help="Total number of training epochs to perform. default = 3", default=3)
     parser.add_argument("-warmup_proportion", type=float,
-                        help="Proportion of training to perform linear learning rate warmup for", default=0.1)
+                        help="Proportion of training to perform linear learning rate warmup for. default = 0.1", default=0.1)
     parser.add_argument("-max_input_examples", type=int,
-                        help="number of training examples to use in the vocab optimization")
+                        help="number of training examples to use in the vocab optimization. "
+                             "default is all training data.")
     parser.add_argument("-train", action="store_true", help="If added, skip preprocessing and start training")
     parser.add_argument("-export", action="store_true",
                         help="If added, skip preprocessing and training, and start exporting to bucket")
-    
+
     parser.add_argument("-use_tpu", action="store_true", help="If added, will use tpu for training")
-    parser.add_argument("-gbucket", help="The gcp bucket where cloud TPU will store outputs to")
-    
+    parser.add_argument("-gbucket", help="The gcp bucket where cloud TPU will store intermediary outputs to")
+
     args = parser.parse_args()
-    
+
     if args.use_tpu and (args.gbucket is None):
         parser.error("-use_tpu requires -gbucket.")
 
