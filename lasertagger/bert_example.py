@@ -28,6 +28,8 @@ import tagging_converter
 import tensorflow as tf
 from typing import Mapping, MutableSequence, Optional, Sequence, Text
 
+import nltk
+import custom_utils
 
 class BertExample(object):
   """Class for training and inference examples for BERT.
@@ -43,8 +45,9 @@ class BertExample(object):
                segment_ids, labels,
                labels_mask,
                token_start_indices,
-               task, default_label):
+               task, default_label, embedding_type):
     input_len = len(input_ids)
+    
     if not (input_len == len(input_mask) and input_len == len(segment_ids) and
             input_len == len(labels) and input_len == len(labels_mask)):
       raise ValueError(
@@ -108,7 +111,7 @@ class BertExampleBuilder(object):
 
   def __init__(self, label_map, vocab_file,
                max_seq_length, do_lower_case,
-               converter):
+               converter, embedding_type):
     """Initializes an instance of BertExampleBuilder.
 
     Args:
@@ -118,6 +121,7 @@ class BertExampleBuilder(object):
       do_lower_case: Whether to lower case the input text. Should be True for
         uncased models and False for cased models.
       converter: Converter from text targets to tags.
+      embedding_type: POS or Normal or Sentence.
     """
     self._label_map = label_map
     self._tokenizer = tokenization.FullTokenizer(vocab_file,
@@ -126,6 +130,9 @@ class BertExampleBuilder(object):
     self._converter = converter
     self._pad_id = self._get_pad_id()
     self._keep_tag_id = self._label_map['KEEP']
+    if embedding_type not in ["POS", "Normal", "Sentence"]:
+        raise ValueError("Embedding_type must be Normal, POS, or Sentence") 
+    self._embedding_type = embedding_type
 
   def build_bert_example(
       self,
@@ -163,11 +170,13 @@ class BertExampleBuilder(object):
       tags = [tagging.Tag('KEEP') for _ in task.source_tokens]
     labels = [self._label_map[str(tag)] for tag in tags]
 
-    tokens, labels, token_start_indices = self._split_to_wordpieces(
-        task.source_tokens, labels)
+    tokens, labels, token_start_indices, special_tags = self._split_to_wordpieces(
+        task.source_tokens, labels, self._embedding_type)
 
     tokens = self._truncate_list(tokens)
     labels = self._truncate_list(labels)
+    if special_tags is not None:
+        special_tags = self._truncate_list(special_tags)
 
     input_tokens = ['[CLS]'] + tokens + ['[SEP]']
     labels_mask = [0] + [1] * len(labels) + [0]
@@ -175,7 +184,14 @@ class BertExampleBuilder(object):
 
     input_ids = self._tokenizer.convert_tokens_to_ids(input_tokens)
     input_mask = [1] * len(input_ids)
-    segment_ids = [0] * len(input_ids)
+    if self._embedding_type == "Normal":
+        segment_ids = [0] * len(input_ids)
+    elif self._embedding_type == "POS":
+        segment_ids = [2] + special_tags + [41]
+    elif self._embedding_type == "Sentence":
+        segment_ids = [0] + special_tags + [0]
+    else:
+        raise ValueError("Embedding_type must be Normal, POS, or Sentence") 
 
     example = BertExample(
         input_ids=input_ids,
@@ -185,20 +201,25 @@ class BertExampleBuilder(object):
         labels_mask=labels_mask,
         token_start_indices=token_start_indices,
         task=task,
-        default_label=self._keep_tag_id)
+        default_label=self._keep_tag_id,
+        embedding_type = self._embedding_type)
     example.pad_to_max_length(self._max_seq_length, self._pad_id)
     return example
 
-  def _split_to_wordpieces(self, tokens, labels):
+
+  def _split_to_wordpieces(self, tokens, labels, embedding_type):
     """Splits tokens (and the labels accordingly) to WordPieces.
 
     Args:
       tokens: Tokens to be split.
       labels: Labels (one per token) to be split.
+      embedding_type: Normal, POS, or Sentence
 
     Returns:
-      3-tuple with the split tokens, split labels, and the indices of the
-      WordPieces that start a token.
+      4-tuple with the split tokens, split labels, the indices of the
+      WordPieces that start a token, and special tags for each token 
+      (POS tag if embedding_type is POS, None if embedding_type is 
+      Normal, and sentence tag if embedding_type is Sentence)
     """
     bert_tokens = []  # Original tokens split into wordpieces.
     bert_labels = []  # Label for each wordpiece.
@@ -210,7 +231,54 @@ class BertExampleBuilder(object):
       pieces = self._tokenizer.tokenize(token)
       bert_tokens.extend(pieces)
       bert_labels.extend([labels[i]] * len(pieces))
-    return bert_tokens, bert_labels, token_start_indices
+    
+    if embedding_type == "Normal":
+        return bert_tokens, bert_labels, token_start_indices, None
+    elif embedding_type == "POS":
+        POS_tags = []
+        tokens_POS = custom_utils.convert_to_POS(tokens)
+        for i, token in enumerate(tokens):
+            pieces = self._tokenizer.tokenize(token)
+            POS_tags.extend([tokens_POS[i]] * len(pieces))
+        return bert_tokens, bert_labels, token_start_indices, POS_tags
+    elif embedding_type == "Sentence":
+        sentence_tags = []
+        sentence_counter = 0
+        for i, token in enumerate(tokens):
+            pieces = self._tokenizer.tokenize(token)
+            for piece in pieces:
+                sentence_tags.extend([sentence_counter])
+                if piece == ".":
+                    sentence_counter = 1 - sentence_counter
+        return bert_tokens, bert_labels, token_start_indices, sentence_tags
+    else:
+        raise ValueError("Embedding_type must be Normal, POS, or Sentence")
+
+
+
+    toens_POS_tags = nltk.pos_tag(tokens)
+    tokens_POS = []
+    for row in toens_POS_tags:
+        a, b = row
+        try:
+            tokens_POS.append(POS_dict[b])
+        except:
+            tokens_POS.append(count)
+        
+    bert_tokens = []  # Original tokens split into wordpieces.
+    bert_labels = []  # Label for each wordpiece.
+    bert_POS = []
+    # Index of each wordpiece that starts a new token.
+    token_start_indices = []
+    for i, token in enumerate(tokens):
+      # '+ 1' is because bert_tokens will be prepended by [CLS] token later.
+      token_start_indices.append(len(bert_tokens) + 1)
+      pieces = self._tokenizer.tokenize(token)
+      bert_tokens.extend(pieces)
+      bert_POS.extend([tokens_POS[i]] * len(pieces))
+      bert_labels.extend([labels[i]] * len(pieces))
+        
+    return bert_tokens, bert_labels, token_start_indices, bert_POS
 
   def _truncate_list(self, x):
     """Returns truncated version of x according to the self._max_seq_length."""
