@@ -23,9 +23,19 @@ from typing import Dict, Text
 """Train LaserTagger model and export to GCP bucket."""
 
 GCP_BUCKET = "gs://trained_models_yechen/"
+BERT_TYPE_BASE = "Base"
+BERT_TYPE_POS = "POS"
+
+BERT_BASE_VOCAB_TYPE_NUMBER = 2
+BERT_POS_VOCAB_TYPE_NUMBER = 42
+
+BERT_BASE_VOCAB_SIZE = 28996
+BERT_POS_VOCAB_SIZE = 32000
 
 
-def write_lasertagger_config(output_dir: Text, bert_type: Text, t2t: bool, number_of_layer: int, hidden_size: int, attention_heads: int, filter_size: int, full_attention: bool):
+def export_lasertagger_config_to_json(output_dir: Text, bert_type: Text, t2t: bool, number_of_layer: int, 
+                                      hidden_size: int, attention_heads: int, filter_size: int, 
+                                      full_attention: bool):
     """ Write the LaserTagger configuration as a json file.
     
     Args:
@@ -39,12 +49,12 @@ def write_lasertagger_config(output_dir: Text, bert_type: Text, t2t: bool, numbe
         full_attention: whether to use full attention in the decoder. 
     """
     
-    if bert_type == "Base":
-        vocab_type = 2
-        vocab_size = 28996
+    if bert_type == BERT_TYPE_BASE:
+        vocab_type = BERT_BASE_VOCAB_TYPE_NUMBER
+        vocab_size = BERT_BASE_VOCAB_SIZE
     elif bert_type == "POS":
-        vocab_type = 42
-        vocab_size = 32000
+        vocab_type = BERT_POS_VOCAB_TYPE_NUMBER
+        vocab_size = BERT_POS_VOCAB_SIZE
     else:
         raise ValueError("bert_type needs to be 'Base' or 'POS'.")
         
@@ -186,14 +196,15 @@ def __training(args):
     else:
         bert_type = "Base"
     
-    write_lasertagger_config(output_dir, bert_type, args.t2t, args.number_layer, args.hidden_size, args.num_attention_head, args.filter_size, args.full_attention)
+    export_lasertagger_config_to_json(output_dir, bert_type, args.t2t, args.number_layer, args.hidden_size, 
+                                      args.num_attention_head, args.filter_size, args.full_attention)
     config_file_path = "{}/bert_config.json".format(output_dir)
     
     print("------ Start training ------")
-    f = open(output_dir + "/train.tf_record.num_examples.txt", "r")
-    num_train_examples = f.read()
-    f = open(output_dir + "/tune.tf_record.num_examples.txt", "r")
-    num_tune_examples = f.read()
+    with open(output_dir + "/train.tf_record.num_examples.txt", "r") as f:
+        num_train_examples = f.read()
+    with open(output_dir + "/tune.tf_record.num_examples.txt", "r") as f:
+        num_tune_examples = f.read()
 
     print("training batch size is", train_batch_size)
     print("learning rate is", learning_rate)
@@ -290,7 +301,7 @@ if __name__ == "__main__":
       abs_path_to_bert      absolute path to the folder where the pretrained BERT is located
       training_file         path to training samples
       tuning_file           path to tuning samples
-      embedding_type        type of embedding. 
+      embedding_type        type of embedding. Must be one of [Normal, POS, Sentence].
                             Normal: segment id is all zero. POS: part of speech tagging. Sentence: sentence tagging.
 
     optional arguments:
@@ -331,8 +342,8 @@ if __name__ == "__main__":
     parser.add_argument("abs_path_to_bert", help="absolute path to the folder where the pretrained BERT is located")
     parser.add_argument("training_file", help="path to training samples")
     parser.add_argument("tuning_file", help="path to tuning samples")
-    parser.add_argument("embedding_type", help="type of embedding. Normal: segment id is all zero. POS: part of " 
-    "speech tagging. Sentence: sentence tagging. ")
+    parser.add_argument("embedding_type", help="type of embedding. Must be one of [Normal, POS, Sentence]. "
+                        "Normal: segment id is all zero. POS: part of speech tagging. Sentence: sentence tagging.")
     
     parser.add_argument("-vocab_size", type=int, help="vocab size. default = 500", default=500)
     parser.add_argument("-train_batch_size", type=int, help="batch size during training. default = 32", default=32)
