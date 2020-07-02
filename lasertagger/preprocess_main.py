@@ -67,6 +67,11 @@ flags.DEFINE_bool(
     'target ids will correspond to the tag sequence KEEP-DELETE-KEEP-DELETE... '
     'which should be very unlikely to be predicted by chance. This will be '
     'useful for getting more accurate eval scores during training.')
+flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
+                    'set to Normal, segment id is all zero. If set to Sentence, '
+                    'segment id marks sentences, i.e. 0 for first sentence, 1 for '
+                   'second second, 0 for third sentence, etc. If set to POS, '
+                   'segment id is the Part of Speech tag of each token.')
 
 
 def _write_example_count(count: int) -> Text:
@@ -94,6 +99,7 @@ def main(argv):
   flags.mark_flag_as_required('output_tfrecord')
   flags.mark_flag_as_required('label_map_file')
   flags.mark_flag_as_required('vocab_file')
+  flags.mark_flag_as_required('embedding_type')
 
   label_map = utils.read_label_map(FLAGS.label_map_file)
   converter = tagging_converter.TaggingConverter(
@@ -101,7 +107,8 @@ def main(argv):
       FLAGS.enable_swap_tag)
   builder = bert_example.BertExampleBuilder(label_map, FLAGS.vocab_file,
                                             FLAGS.max_seq_length,
-                                            FLAGS.do_lower_case, converter)
+                                            FLAGS.do_lower_case, converter,
+                                            FLAGS.embedding_type)
 
   num_converted = 0
   with tf.io.TFRecordWriter(FLAGS.output_tfrecord) as writer:
