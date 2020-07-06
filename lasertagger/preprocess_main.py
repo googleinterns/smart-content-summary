@@ -106,6 +106,10 @@ def main(argv):
   converter = tagging_converter.TaggingConverter(
       tagging_converter.get_phrase_vocabulary_from_label_map(label_map),
       FLAGS.enable_swap_tag)
+  
+  if FLAGS.do_masking:
+        prepare_vocab_for_masking(FLAGS.vocab_file)
+
   builder = bert_example.BertExampleBuilder(label_map, FLAGS.vocab_file,
                                             FLAGS.max_seq_length,
                                             FLAGS.do_lower_case, converter,
