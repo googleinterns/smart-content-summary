@@ -168,30 +168,30 @@ def __preprocess(args):
                     cwd=lasertagger_dir)
 
     print("------ Running preprocessing ------")
-    tuning_preprocess_command = "python preprocess_main.py --input_file=" + tuning_file +
-                     " --input_format=wikisplit" +
+    tuning_preprocess_command = ("python preprocess_main.py --input_file=" + tuning_file + 
+                     " --input_format=wikisplit" + 
                      " --output_tfrecord=" + output_dir + "/tune.tf_record" +
                      " --label_map_file=" + output_file +
                      " --vocab_file=" + bert_dir + "/vocab.txt" +
                      " --output_arbitrary_targets_for_infeasible_examples=true" +
-                     " --embedding_type=" + args.embedding_type
+                     " --embedding_type=" + args.embedding_type)
     if args.masking:
         tuning_preprocess_command += " --enable_mask=true"
                         
-    subprocess.call((tuning_preprocess_command.split(),
+    subprocess.call(tuning_preprocess_command.split(),
                     cwd=lasertagger_dir)
     
-    training_preprocess_command = "python preprocess_main.py --input_file=" + training_file +
+    training_preprocess_command = ("python preprocess_main.py --input_file=" + training_file +
                      " --input_format=wikisplit" +
                      " --output_tfrecord=" + output_dir + "/train.tf_record" +
                      " --label_map_file=" + output_file +
                      " --vocab_file=" + bert_dir + "/vocab.txt" +
                      " --output_arbitrary_targets_for_infeasible_examples=false" +
-                     " --embedding_type=" + args.embedding_type
+                     " --embedding_type=" + args.embedding_type)
     if args.masking:
         training_preprocess_command += " --enable_mask=true"                    
     
-    subprocess.call((training_preprocess_command.split(),
+    subprocess.call(training_preprocess_command.split(),
                     cwd=lasertagger_dir)
 
 
