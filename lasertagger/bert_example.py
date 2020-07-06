@@ -111,24 +111,24 @@ class BertExampleBuilder(object):
   """Builder class for BertExample objects."""
 
   def __init__(self, label_map, vocab_file,
-               max_seq_length, do_lower_case,
-               converter, embedding_type, do_masking):
+               max_seq_length, lower_case,
+               converter, embedding_type, enable_mask):
     """Initializes an instance of BertExampleBuilder.
 
     Args:
       label_map: Mapping from tags to tag IDs.
       vocab_file: Path to BERT vocabulary file.
       max_seq_length: Maximum sequence length.
-      do_lower_case: Whether to lower case the input text. Should be True for
+      lower_case: Whether to lower case the input text. Should be True for
         uncased models and False for cased models.
       converter: Converter from text targets to tags.
       embedding_type: POS or Normal or Sentence.
-      do_masking: whether to mask numbers and symbols
+      enable_mask: whether to mask numbers and symbols
     """
     self._label_map = label_map
     self._tokenizer = tokenization.FullTokenizer(vocab_file,
-                                                 do_lower_case=do_lower_case,
-                                                 do_masking=do_masking)
+                                                 lower_case=lower_case,
+                                                 enable_mask=enable_mask)
     self._max_seq_length = max_seq_length
     self._converter = converter
     self._pad_id = self._get_pad_id()
