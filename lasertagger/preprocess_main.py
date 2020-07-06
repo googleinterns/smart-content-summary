@@ -72,7 +72,8 @@ flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
                     'segment id marks sentences, i.e. 0 for first sentence, 1 for '
                    'second second, 0 for third sentence, etc. If set to POS, '
                    'segment id is the Part of Speech tag of each token.')
-
+flags.DEFINE_bool('do_masking', False, 'Whether to set digits and symbols'
+                 'to generic type.')
 
 def _write_example_count(count: int) -> Text:
   """Saves the number of converted examples to a file.
@@ -108,7 +109,8 @@ def main(argv):
   builder = bert_example.BertExampleBuilder(label_map, FLAGS.vocab_file,
                                             FLAGS.max_seq_length,
                                             FLAGS.do_lower_case, converter,
-                                            FLAGS.embedding_type)
+                                            FLAGS.embedding_type, 
+                                            FLAGS.do_masking)
 
   num_converted = 0
   with tf.io.TFRecordWriter(FLAGS.output_tfrecord) as writer:
