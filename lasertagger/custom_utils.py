@@ -17,6 +17,7 @@
 from typing import Text, List
 
 import nltk
+import re
 
 
 def convert_to_pos(tokens: List[Text]) -> List[int]:
@@ -50,7 +51,7 @@ def convert_to_pos(tokens: List[Text]) -> List[int]:
 
 
 def prepare_vocab_for_masking(vocab_file):
-    """ Add "0" and "###" as the generic masking for numbers and symbols to the
+    """ Add [NUMBER] and [SYMBOL] as the generic masking for numbers and symbols to the
     vocab file if they do not exist.
     
     Args:
@@ -60,8 +61,8 @@ def prepare_vocab_for_masking(vocab_file):
         # read a list of lines into data
         lines = f.readlines()
 
-    lines = __replace_unused_vocab(lines, "###\n")
-    lines = __replace_unused_vocab(lines, "0\n")
+    lines = __replace_unused_vocab(lines, "[SYMBOL]\n")
+    lines = __replace_unused_vocab(lines, "[NUMBER]\n")
 
     with open(vocab_file, 'w') as file:
         file.writelines(lines)
@@ -75,10 +76,10 @@ def __replace_unused_vocab(vocab_list, new_vocab):
       new_vocab: a new vocab that needs to be added to the list
     """    
     if new_vocab not in vocab_list:
-        pattern = '\[UNUSED_.*\]\n'
-        pattern_compiled = re.compile(pattern)
+        pattern = re.compile('\[UNUSED_.*\]\n')
         for i, vocab in enumerate(vocab_list):
-            if re.match(pattern_compiled, vocab):
+            if re.match(pattern, vocab):
                 vocab_list[i] = new_vocab
                 return vocab_list
-    raise IndexError('There is no unused vocab in the list.')
+        raise IndexError('There is no unused vocab in the list.')
+    return vocab_list
