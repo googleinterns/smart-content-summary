@@ -47,9 +47,9 @@ class BertExampleTest(tf.test.TestCase):
         label_map, vocab_file, max_seq_length, do_lower_case, converter, "Normal")
     self._builder = bert_example.BertExampleBuilder(
         label_map, vocab_file, max_seq_length, do_lower_case, converter, "Normal")
-    self._POS_builder = bert_example.BertExampleBuilder(
+    self._pos_builder = bert_example.BertExampleBuilder(
         label_map, vocab_file, max_seq_length, do_lower_case, converter, "POS")
-    self._Sentence_builder = bert_example.BertExampleBuilder(
+    self._sentence_builder = bert_example.BertExampleBuilder(
         label_map, vocab_file, max_seq_length, do_lower_case, converter, "Sentence")
     self._label_map = label_map
     self._vocab_file = vocab_file
@@ -106,24 +106,24 @@ class BertExampleTest(tf.test.TestCase):
     with self.assertRaises(ValueError):
       # The embedding type is wrong, and return raise ValueError
       invalid_builder = bert_example.BertExampleBuilder(
-        self._label_map, self._vocab_file, 8, True, tagging_converter.TaggingConverter([])
-          , "Wrong Type")
+        self._label_map, self._vocab_file, 8, True, tagging_converter.TaggingConverter([]),
+          "Wrong Type")
 
     
-  def test_building_with_embedding_type_as_POS(self):
+  def test_building_with_embedding_type_as_pos(self):
     # Test the building when the embedding type is POS
     sources = ["This is test."]
-    example = self._POS_builder.build_bert_example(sources)
+    example = self._pos_builder.build_bert_example(sources)
     self.assertEqual(example.features['input_ids'], [0, 8, 9, 10, 11, 1, 2, 2])
     self.assertEqual(example.features['input_mask'], [1, 1, 1, 1, 1, 1, 0, 0])
     self.assertEqual(example.features['segment_ids'], [2, 5, 33, 9, 9, 41, 0, 0])
     
     
-  def test_building_with_embedding_type_as_Sentence(self):
+  def test_building_with_embedding_type_as_sentence(self):
     # Test the building when the embedding type is POS. Since there are two sentences,
     # the segment_ids should start with 0 and end with 1.
     sources = ["Test 1. Test 2"]
-    example = self._Sentence_builder.build_bert_example(sources)
+    example = self._sentence_builder.build_bert_example(sources)
     self.assertEqual(example.features['input_ids'], [0, 12, 13, 11, 12, 14, 1, 2])
     self.assertEqual(example.features['input_mask'], [1, 1, 1, 1, 1, 1, 1, 0])
     self.assertEqual(example.features['segment_ids'], [0, 0, 0, 0, 1, 1, 0, 0])

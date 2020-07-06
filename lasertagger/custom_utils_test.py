@@ -16,14 +16,15 @@
 
 import unittest
 from unittest import TestCase
+
 import custom_utils
-    
-    
+
+
 class CustomUtilsTestCase(TestCase):
-    def test_convert_to_POS(self):
-        result = custom_utils.convert_to_POS(["This is a test string"])
-        self.assertTrue(max(result) <= 40 and min(result) >= 3)
-    
-    
+    def test_convert_to_pos(self):
+        result = custom_utils.convert_to_pos("This is a test string".split())
+        self.assertEqual(result, [5, 33, 5, 14, 14])
+
+
 if __name__ == '__main__':
     unittest.main()

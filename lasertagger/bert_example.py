@@ -64,6 +64,7 @@ class BertExample(object):
     self._token_start_indices = token_start_indices
     self.editing_task = task
     self._default_label = default_label
+    self._embedding_type = embedding_type
 
   def pad_to_max_length(self, max_seq_length, pad_token_id):
     """Pad the feature vectors so that they all have max_seq_length.
@@ -202,7 +203,7 @@ class BertExampleBuilder(object):
         token_start_indices=token_start_indices,
         task=task,
         default_label=self._keep_tag_id,
-        embedding_type = self._embedding_type)
+        embedding_type=self._embedding_type)
     example.pad_to_max_length(self._max_seq_length, self._pad_id)
     return example
 
@@ -235,12 +236,12 @@ class BertExampleBuilder(object):
     if embedding_type == "Normal":
         return bert_tokens, bert_labels, token_start_indices, None
     elif embedding_type == "POS":
-        POS_tags = []
-        tokens_POS = custom_utils.convert_to_POS(tokens)
+        pos_tags = []
+        tokens_pos = custom_utils.convert_to_pos(tokens)
         for i, token in enumerate(tokens):
             pieces = self._tokenizer.tokenize(token)
-            POS_tags.extend([tokens_POS[i]] * len(pieces))
-        return bert_tokens, bert_labels, token_start_indices, POS_tags
+            pos_tags.extend([tokens_pos[i]] * len(pieces))
+        return bert_tokens, bert_labels, token_start_indices, pos_tags
     elif embedding_type == "Sentence":
         sentence_tags = []
         sentence_counter = 0
@@ -253,32 +254,6 @@ class BertExampleBuilder(object):
         return bert_tokens, bert_labels, token_start_indices, sentence_tags
     else:
         raise ValueError("Embedding_type must be Normal, POS, or Sentence")
-
-
-
-    toens_POS_tags = nltk.pos_tag(tokens)
-    tokens_POS = []
-    for row in toens_POS_tags:
-        a, b = row
-        try:
-            tokens_POS.append(POS_dict[b])
-        except:
-            tokens_POS.append(count)
-        
-    bert_tokens = []  # Original tokens split into wordpieces.
-    bert_labels = []  # Label for each wordpiece.
-    bert_POS = []
-    # Index of each wordpiece that starts a new token.
-    token_start_indices = []
-    for i, token in enumerate(tokens):
-      # '+ 1' is because bert_tokens will be prepended by [CLS] token later.
-      token_start_indices.append(len(bert_tokens) + 1)
-      pieces = self._tokenizer.tokenize(token)
-      bert_tokens.extend(pieces)
-      bert_POS.extend([tokens_POS[i]] * len(pieces))
-      bert_labels.extend([labels[i]] * len(pieces))
-        
-    return bert_tokens, bert_labels, token_start_indices, bert_POS
 
   def _truncate_list(self, x):
     """Returns truncated version of x according to the self._max_seq_length."""
