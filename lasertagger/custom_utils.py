@@ -47,3 +47,38 @@ def convert_to_pos(tokens: List[Text]) -> List[int]:
             tokens_pos.append(oov_tag)
 
     return tokens_pos
+
+
+def prepare_vocab_for_masking(vocab_file):
+    """ Add "0" and "###" as the generic masking for numbers and symbols to the
+    vocab file if they do not exist.
+    
+    Args:
+      vocab_file: path to the BERT vocab file.
+    """
+    with open(vocab_file, 'r') as f:
+        # read a list of lines into data
+        lines = f.readlines()
+
+    lines = __replace_unused_vocab(lines, "###\n")
+    lines = __replace_unused_vocab(lines, "0\n")
+
+    with open(vocab_file, 'w') as file:
+        file.writelines(lines)
+    
+    
+def __replace_unused_vocab(vocab_list, new_vocab):
+    """ Replace unused vocab in the vocab list with new vocab.
+    
+    Args:
+      vocab_list: a list of vocab tokens
+      new_vocab: a new vocab that needs to be added to the list
+    """    
+    if new_vocab not in vocab_list:
+        pattern = '\[UNUSED_.*\]\n'
+        pattern_compiled = re.compile(pattern)
+        for i, vocab in enumerate(vocab_list):
+            if re.match(pattern_compiled, vocab):
+                vocab_list[i] = new_vocab
+                return vocab_list
+    raise IndexError('There is no unused vocab in the list.')
