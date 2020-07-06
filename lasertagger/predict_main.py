@@ -61,7 +61,7 @@ flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
                     'segment id marks sentences, i.e. 0 for first sentence, 1 for '
                    'second second, 0 for third sentence, etc. If set to POS, '
                    'segment id is the Part of Speech tag of each token.')
-flags.DEFINE_bool('do_masking', False, 'Whether to set digits and symbols'
+flags.DEFINE_bool('enable_masking', False, 'Whether to set digits and symbols'
                  'to generic type.')
 
 def main(argv):
@@ -83,7 +83,7 @@ def main(argv):
                                             FLAGS.max_seq_length,
                                             FLAGS.do_lower_case, converter,
                                             FLAGS.embedding_type,
-                                            FLAGS.do_masking)
+                                            FLAGS.enable_masking)
   predictor = predict_utils.LaserTaggerPredictor(
       tf.contrib.predictor.from_saved_model(FLAGS.saved_model), builder,
       label_map)
