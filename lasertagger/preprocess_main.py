@@ -31,6 +31,7 @@ from absl import flags
 from absl import logging
 
 import bert_example
+import custom_utils
 import tagging_converter
 import utils
 
@@ -72,7 +73,7 @@ flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
                     'segment id marks sentences, i.e. 0 for first sentence, 1 for '
                    'second second, 0 for third sentence, etc. If set to POS, '
                    'segment id is the Part of Speech tag of each token.')
-flags.DEFINE_bool('do_masking', False, 'Whether to set digits and symbols'
+flags.DEFINE_bool('enable_mask', False, 'Whether to set digits and symbols'
                  'to generic type.')
 
 def _write_example_count(count: int) -> Text:
@@ -107,14 +108,14 @@ def main(argv):
       tagging_converter.get_phrase_vocabulary_from_label_map(label_map),
       FLAGS.enable_swap_tag)
   
-  if FLAGS.do_masking:
-        prepare_vocab_for_masking(FLAGS.vocab_file)
+  if FLAGS.enable_mask:
+        custom_utils.prepare_vocab_for_masking(FLAGS.vocab_file)
 
   builder = bert_example.BertExampleBuilder(label_map, FLAGS.vocab_file,
                                             FLAGS.max_seq_length,
                                             FLAGS.do_lower_case, converter,
                                             FLAGS.embedding_type, 
-                                            FLAGS.do_masking)
+                                            FLAGS.enable_mask)
 
   num_converted = 0
   with tf.io.TFRecordWriter(FLAGS.output_tfrecord) as writer:
