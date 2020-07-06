@@ -161,11 +161,15 @@ def whitespace_tokenize(text):
 class FullTokenizer(object):
   """Runs end-to-end tokenziation."""
 
-  def __init__(self, vocab_file, do_lower_case=True):
+  SPECIAL_SYMBOL_LIST = [".", ",", ";", "!", "?", ":", 
+                               "##.", "##,", "##;", "##!", "##?", "##:"]
+  
+  def __init__(self, vocab_file, do_lower_case=True, do_masking=False):
     self.vocab = load_vocab(vocab_file)
     self.inv_vocab = {v: k for k, v in self.vocab.items()}
     self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
     self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
+    self.do_masking = do_masking
 
   def tokenize(self, text):
     split_tokens = []
@@ -176,7 +180,23 @@ class FullTokenizer(object):
     return split_tokens
 
   def convert_tokens_to_ids(self, tokens):
-    return convert_by_vocab(self.vocab, tokens)
+    if not do_masking:
+        return convert_by_vocab(self.vocab, tokens)
+    else:
+        ids = []
+        digit_pattern = re.compile("^##[0-9]*$")
+        letter_pattern = re.compile("^##[A-Za-z]+$")
+        for token in tokens:
+            if token.isdigit() or re.match(digit_pattern, token):
+                masked_token = "0"
+            elif (not token.isalpha() and 
+                  not re.match(letter_pattern, token) and 
+                  token not in FullTokenizer.SPECIAL_SYMBOL_LIST):
+                masked_token = "###"
+            else:
+                masked_token = token
+            ids.append(self.vocab[masked_token])
+        return ids
 
   def convert_ids_to_tokens(self, ids):
     return convert_by_vocab(self.inv_vocab, ids)
