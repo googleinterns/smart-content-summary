@@ -161,8 +161,6 @@ def whitespace_tokenize(text):
 class FullTokenizer(object):
   """Runs end-to-end tokenziation."""
 
-  self._special_symbol_list = [".", ",", ";", "!", "?", ":", 
-                               "##.", "##,", "##;", "##!", "##?", "##:"]
   
   def __init__(self, vocab_file, lower_case=True, enable_mask=False):
     self.vocab = load_vocab(vocab_file)
@@ -170,6 +168,8 @@ class FullTokenizer(object):
     self.basic_tokenizer = BasicTokenizer(lower_case=lower_case)
     self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
     self.enable_mask = enable_mask
+    self._special_symbol_list = [".", ",", ";", "!", "?", ":", 
+                               "##.", "##,", "##;", "##!", "##?", "##:"]
 
   def tokenize(self, text):
     split_tokens = []
