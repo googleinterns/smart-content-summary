@@ -161,11 +161,14 @@ def whitespace_tokenize(text):
 class FullTokenizer(object):
   """Runs end-to-end tokenziation."""
 
-  def __init__(self, vocab_file, do_lower_case=True):
+  def __init__(self, vocab_file, lower_case=True, enable_mask=False):
     self.vocab = load_vocab(vocab_file)
     self.inv_vocab = {v: k for k, v in self.vocab.items()}
-    self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
+    self.basic_tokenizer = BasicTokenizer(lower_case=lower_case)
     self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
+    self.enable_mask = enable_mask
+    self._special_symbol_list = [".", ",", ";", "!", "?", ":", 
+                               "##.", "##,", "##;", "##!", "##?", "##:"]
 
   def tokenize(self, text):
     split_tokens = []
@@ -176,7 +179,24 @@ class FullTokenizer(object):
     return split_tokens
 
   def convert_tokens_to_ids(self, tokens):
-    return convert_by_vocab(self.vocab, tokens)
+    if not self.enable_mask:
+        return convert_by_vocab(self.vocab, tokens)
+    else:
+        ids = []
+        digit_pattern = re.compile("^##[0-9]*$")
+        letter_pattern = re.compile("^##[A-Za-z]+$")
+        for token in tokens:
+            if token.isdigit() or re.match(digit_pattern, token):
+                masked_token = "[NUMBER]"
+            elif (not token.isalpha() and 
+                  not re.match(letter_pattern, token) and 
+                  token not in self._special_symbol_list):
+                masked_token = "[SYMBOL]"
+            else:
+                masked_token = token
+            ids.append(self.vocab[masked_token])
+        return ids
+
 
   def convert_ids_to_tokens(self, ids):
     return convert_by_vocab(self.inv_vocab, ids)
@@ -185,13 +205,13 @@ class FullTokenizer(object):
 class BasicTokenizer(object):
   """Runs basic tokenization (punctuation splitting, lower casing, etc.)."""
 
-  def __init__(self, do_lower_case=True):
+  def __init__(self, lower_case=True):
     """Constructs a BasicTokenizer.
 
     Args:
-      do_lower_case: Whether to lower case the input.
+      lower_case: Whether to lower case the input.
     """
-    self.do_lower_case = do_lower_case
+    self.lower_case = lower_case
 
   def tokenize(self, text):
     """Tokenizes a piece of text."""
@@ -209,7 +229,7 @@ class BasicTokenizer(object):
     orig_tokens = whitespace_tokenize(text)
     split_tokens = []
     for token in orig_tokens:
-      if self.do_lower_case:
+      if self.lower_case:
         token = token.lower()
         token = self._run_strip_accents(token)
       split_tokens.extend(self._run_split_on_punc(token))

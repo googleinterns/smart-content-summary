@@ -28,6 +28,11 @@ import tagging_converter
 import tensorflow as tf
 from typing import Mapping, MutableSequence, Optional, Sequence, Text
 
+import nltk
+import custom_utils
+
+POS_START_TAG = 2
+POS_END_TAG = 41
 
 class BertExample(object):
   """Class for training and inference examples for BERT.
@@ -43,8 +48,9 @@ class BertExample(object):
                segment_ids, labels,
                labels_mask,
                token_start_indices,
-               task, default_label):
+               task, default_label, embedding_type):
     input_len = len(input_ids)
+    
     if not (input_len == len(input_mask) and input_len == len(segment_ids) and
             input_len == len(labels) and input_len == len(labels_mask)):
       raise ValueError(
@@ -61,6 +67,7 @@ class BertExample(object):
     self._token_start_indices = token_start_indices
     self.editing_task = task
     self._default_label = default_label
+    self._embedding_type = embedding_type
 
   def pad_to_max_length(self, max_seq_length, pad_token_id):
     """Pad the feature vectors so that they all have max_seq_length.
@@ -107,25 +114,31 @@ class BertExampleBuilder(object):
   """Builder class for BertExample objects."""
 
   def __init__(self, label_map, vocab_file,
-               max_seq_length, do_lower_case,
-               converter):
+               max_seq_length, lower_case,
+               converter, embedding_type, enable_mask):
     """Initializes an instance of BertExampleBuilder.
 
     Args:
       label_map: Mapping from tags to tag IDs.
       vocab_file: Path to BERT vocabulary file.
       max_seq_length: Maximum sequence length.
-      do_lower_case: Whether to lower case the input text. Should be True for
+      lower_case: Whether to lower case the input text. Should be True for
         uncased models and False for cased models.
       converter: Converter from text targets to tags.
+      embedding_type: POS or Normal or Sentence.
+      enable_mask: whether to mask numbers and symbols
     """
     self._label_map = label_map
     self._tokenizer = tokenization.FullTokenizer(vocab_file,
-                                                 do_lower_case=do_lower_case)
+                                                 lower_case=lower_case,
+                                                 enable_mask=enable_mask)
     self._max_seq_length = max_seq_length
     self._converter = converter
     self._pad_id = self._get_pad_id()
     self._keep_tag_id = self._label_map['KEEP']
+    if embedding_type not in ["POS", "Normal", "Sentence"]:
+        raise ValueError("Embedding_type must be Normal, POS, or Sentence") 
+    self._embedding_type = embedding_type
 
   def build_bert_example(
       self,
@@ -163,11 +176,13 @@ class BertExampleBuilder(object):
       tags = [tagging.Tag('KEEP') for _ in task.source_tokens]
     labels = [self._label_map[str(tag)] for tag in tags]
 
-    tokens, labels, token_start_indices = self._split_to_wordpieces(
-        task.source_tokens, labels)
+    tokens, labels, token_start_indices, special_tags = self._split_to_wordpieces(
+        task.source_tokens, labels, self._embedding_type)
 
     tokens = self._truncate_list(tokens)
     labels = self._truncate_list(labels)
+    if special_tags is not None:
+        special_tags = self._truncate_list(special_tags)
 
     input_tokens = ['[CLS]'] + tokens + ['[SEP]']
     labels_mask = [0] + [1] * len(labels) + [0]
@@ -175,7 +190,14 @@ class BertExampleBuilder(object):
 
     input_ids = self._tokenizer.convert_tokens_to_ids(input_tokens)
     input_mask = [1] * len(input_ids)
-    segment_ids = [0] * len(input_ids)
+    if self._embedding_type == "Normal":
+        segment_ids = [0] * len(input_ids)
+    elif self._embedding_type == "POS":
+        segment_ids = [POS_START_TAG] + special_tags + [POS_END_TAG]
+    elif self._embedding_type == "Sentence":
+        segment_ids = [0] + special_tags + [0]
+    else:
+        raise ValueError("Embedding_type must be Normal, POS, or Sentence") 
 
     example = BertExample(
         input_ids=input_ids,
@@ -185,20 +207,25 @@ class BertExampleBuilder(object):
         labels_mask=labels_mask,
         token_start_indices=token_start_indices,
         task=task,
-        default_label=self._keep_tag_id)
+        default_label=self._keep_tag_id,
+        embedding_type=self._embedding_type)
     example.pad_to_max_length(self._max_seq_length, self._pad_id)
     return example
 
-  def _split_to_wordpieces(self, tokens, labels):
+
+  def _split_to_wordpieces(self, tokens, labels, embedding_type):
     """Splits tokens (and the labels accordingly) to WordPieces.
 
     Args:
       tokens: Tokens to be split.
       labels: Labels (one per token) to be split.
+      embedding_type: Normal, POS, or Sentence
 
     Returns:
-      3-tuple with the split tokens, split labels, and the indices of the
-      WordPieces that start a token.
+      4-tuple with the split tokens, split labels, the indices of the
+      WordPieces that start a token, and special tags for each token 
+      (POS tag if embedding_type is POS, None if embedding_type is 
+      Normal, and sentence tag if embedding_type is Sentence)
     """
     bert_tokens = []  # Original tokens split into wordpieces.
     bert_labels = []  # Label for each wordpiece.
@@ -210,7 +237,28 @@ class BertExampleBuilder(object):
       pieces = self._tokenizer.tokenize(token)
       bert_tokens.extend(pieces)
       bert_labels.extend([labels[i]] * len(pieces))
-    return bert_tokens, bert_labels, token_start_indices
+    
+    if embedding_type == "Normal":
+        return bert_tokens, bert_labels, token_start_indices, None
+    elif embedding_type == "POS":
+        pos_tags = []
+        tokens_pos = custom_utils.convert_to_pos(tokens)
+        for i, token in enumerate(tokens):
+            pieces = self._tokenizer.tokenize(token)
+            pos_tags.extend([tokens_pos[i]] * len(pieces))
+        return bert_tokens, bert_labels, token_start_indices, pos_tags
+    elif embedding_type == "Sentence":
+        sentence_tags = []
+        sentence_counter = 0
+        for i, token in enumerate(tokens):
+            pieces = self._tokenizer.tokenize(token)
+            for piece in pieces:
+                sentence_tags.extend([sentence_counter])
+                if piece == ".":
+                    sentence_counter = 1 - sentence_counter
+        return bert_tokens, bert_labels, token_start_indices, sentence_tags
+    else:
+        raise ValueError("Embedding_type must be Normal, POS, or Sentence")
 
   def _truncate_list(self, x):
     """Returns truncated version of x according to the self._max_seq_length."""

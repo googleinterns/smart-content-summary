@@ -81,7 +81,7 @@ def export_lasertagger_config_to_json(output_dir: Text, bert_type: Text, t2t: bo
     
     output_dir = os.path.expanduser(output_dir)
 
-    with open("{}/bert_config.json".format(output_dir), "w") as f:
+    with open("{}/lasertagger_config.json".format(output_dir), "w") as f:
         json.dump(lasertagger_conf, f, indent=2)
 
 
@@ -168,22 +168,30 @@ def __preprocess(args):
                     cwd=lasertagger_dir)
 
     print("------ Running preprocessing ------")
-    subprocess.call(("python preprocess_main.py --input_file=" + tuning_file +
-                     " --input_format=wikisplit" +
+    tuning_preprocess_command = ("python preprocess_main.py --input_file=" + tuning_file + 
+                     " --input_format=wikisplit" + 
                      " --output_tfrecord=" + output_dir + "/tune.tf_record" +
                      " --label_map_file=" + output_file +
                      " --vocab_file=" + bert_dir + "/vocab.txt" +
                      " --output_arbitrary_targets_for_infeasible_examples=true" +
-                     " --embedding_type=" + args.embedding_type).split(),
+                     " --embedding_type=" + args.embedding_type)
+    if args.masking:
+        tuning_preprocess_command += " --enable_mask=true"
+                        
+    subprocess.call(tuning_preprocess_command.split(),
                     cwd=lasertagger_dir)
-
-    subprocess.call(("python preprocess_main.py --input_file=" + training_file +
+    
+    training_preprocess_command = ("python preprocess_main.py --input_file=" + training_file +
                      " --input_format=wikisplit" +
                      " --output_tfrecord=" + output_dir + "/train.tf_record" +
                      " --label_map_file=" + output_file +
                      " --vocab_file=" + bert_dir + "/vocab.txt" +
                      " --output_arbitrary_targets_for_infeasible_examples=false" +
-                     " --embedding_type=" + args.embedding_type).split(),
+                     " --embedding_type=" + args.embedding_type)
+    if args.masking:
+        training_preprocess_command += " --enable_mask=true"                    
+    
+    subprocess.call(training_preprocess_command.split(),
                     cwd=lasertagger_dir)
 
 
@@ -198,7 +206,7 @@ def __training(args):
     
     export_lasertagger_config_to_json(output_dir, bert_type, args.t2t, args.number_layer, args.hidden_size, 
                                       args.num_attention_head, args.filter_size, args.full_attention)
-    config_file_path = "{}/bert_config.json".format(output_dir)
+    config_file_path = "{}/lasertagger_config.json".format(output_dir)
     
     print("------ Start training ------")
     with open(output_dir + "/train.tf_record.num_examples.txt", "r") as f:
@@ -334,6 +342,7 @@ if __name__ == "__main__":
                             The size of the filter in the decoder. default=3072
       -full_attention FULL_ATTENTION
                             Whether to use full attention in the decoder. default=false
+      -masking              If added, numbers and symbols will be masked.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("model_output_dir", help="the directory of the model output")
@@ -366,7 +375,8 @@ if __name__ == "__main__":
     parser.add_argument("-hidden_size", type=int, default=768, help="The size of the hidden layer size in the decoder. default=768")
     parser.add_argument("-num_attention_head", type=int, default=4, help="The number of attention heads in the decoder. default=4")
     parser.add_argument("-filter_size", type=int, default=3072, help="The size of the filter in the decoder. default=3072")
-    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")
+    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")   
+    parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
     args = parser.parse_args()
     
     if args.use_tpu and (args.gbucket is None):

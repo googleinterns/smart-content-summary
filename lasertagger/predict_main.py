@@ -56,7 +56,13 @@ flags.DEFINE_bool(
     'models and False for cased models.')
 flags.DEFINE_bool('enable_swap_tag', True, 'Whether to enable the SWAP tag.')
 flags.DEFINE_string('saved_model', None, 'Path to an exported TF model.')
-
+flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
+                    'set to Normal, segment id is all zero. If set to Sentence, '
+                    'segment id marks sentences, i.e. 0 for first sentence, 1 for '
+                   'second second, 0 for third sentence, etc. If set to POS, '
+                   'segment id is the Part of Speech tag of each token.')
+flags.DEFINE_bool('enable_masking', False, 'Whether to set digits and symbols'
+                 'to generic type.')
 
 def main(argv):
   if len(argv) > 1:
@@ -67,6 +73,7 @@ def main(argv):
   flags.mark_flag_as_required('label_map_file')
   flags.mark_flag_as_required('vocab_file')
   flags.mark_flag_as_required('saved_model')
+  flags.mark_flag_as_required('embedding_type')
 
   label_map = utils.read_label_map(FLAGS.label_map_file)
   converter = tagging_converter.TaggingConverter(
@@ -74,7 +81,9 @@ def main(argv):
       FLAGS.enable_swap_tag)
   builder = bert_example.BertExampleBuilder(label_map, FLAGS.vocab_file,
                                             FLAGS.max_seq_length,
-                                            FLAGS.do_lower_case, converter)
+                                            FLAGS.do_lower_case, converter,
+                                            FLAGS.embedding_type,
+                                            FLAGS.enable_masking)
   predictor = predict_utils.LaserTaggerPredictor(
       tf.contrib.predictor.from_saved_model(FLAGS.saved_model), builder,
       label_map)

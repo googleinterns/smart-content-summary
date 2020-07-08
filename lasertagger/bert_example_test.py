@@ -33,7 +33,8 @@ class BertExampleTest(tf.test.TestCase):
   def setUp(self):
     super(BertExampleTest, self).setUp()
 
-    vocab_tokens = ['[CLS]', '[SEP]', '[PAD]', 'a', 'b', 'c', '##d', '##e']
+    vocab_tokens = ['[CLS]', '[SEP]', '[PAD]', 'a', 'b', 'c', '##d', '##e', 
+                    "This", "is", "test", ".", "Test", "1", "2"]
     vocab_file = os.path.join(FLAGS.test_tmpdir, 'vocab.txt')
     with tf.io.gfile.GFile(vocab_file, 'w') as vocab_writer:
       vocab_writer.write(''.join([x + '\n' for x in vocab_tokens]))
@@ -43,7 +44,16 @@ class BertExampleTest(tf.test.TestCase):
     do_lower_case = False
     converter = tagging_converter.TaggingConverter([])
     self._builder = bert_example.BertExampleBuilder(
-        label_map, vocab_file, max_seq_length, do_lower_case, converter)
+        label_map, vocab_file, max_seq_length, do_lower_case, converter, "Normal")
+    self._builder = bert_example.BertExampleBuilder(
+        label_map, vocab_file, max_seq_length, do_lower_case, converter, "Normal")
+    self._pos_builder = bert_example.BertExampleBuilder(
+        label_map, vocab_file, max_seq_length, do_lower_case, converter, "POS")
+    self._sentence_builder = bert_example.BertExampleBuilder(
+        label_map, vocab_file, max_seq_length, do_lower_case, converter, "Sentence")
+    self._label_map = label_map
+    self._vocab_file = vocab_file
+    
 
   def test_building_with_target(self):
     sources = ['a b ade']
@@ -89,8 +99,35 @@ class BertExampleTest(tf.test.TestCase):
     with self.assertRaises(ValueError):
       # The first feature list has len 2, whereas the others have len 1, so a
       # ValueError should be raised.
-      bert_example.BertExample([0, 0], [0], [0], [0], [0], [0], None, 0)
+      bert_example.BertExample([0, 0], [0], [0], [0], [0], [0], None, 0, "Normal")
 
 
+  def test_invalid_embedding_type(self):
+    with self.assertRaises(ValueError):
+      # The embedding type is wrong, and return raise ValueError
+      invalid_builder = bert_example.BertExampleBuilder(
+        self._label_map, self._vocab_file, 8, True, tagging_converter.TaggingConverter([]),
+          "Wrong Type")
+
+    
+  def test_building_with_embedding_type_as_pos(self):
+    # Test the building when the embedding type is POS
+    sources = ["This is test."]
+    example = self._pos_builder.build_bert_example(sources)
+    self.assertEqual(example.features['input_ids'], [0, 8, 9, 10, 11, 1, 2, 2])
+    self.assertEqual(example.features['input_mask'], [1, 1, 1, 1, 1, 1, 0, 0])
+    self.assertEqual(example.features['segment_ids'], [2, 5, 33, 9, 9, 41, 0, 0])
+    
+    
+  def test_building_with_embedding_type_as_sentence(self):
+    # Test the building when the embedding type is POS. Since there are two sentences,
+    # the segment_ids should start with 0 and end with 1.
+    sources = ["Test 1. Test 2"]
+    example = self._sentence_builder.build_bert_example(sources)
+    self.assertEqual(example.features['input_ids'], [0, 12, 13, 11, 12, 14, 1, 2])
+    self.assertEqual(example.features['input_mask'], [1, 1, 1, 1, 1, 1, 1, 0])
+    self.assertEqual(example.features['segment_ids'], [0, 0, 0, 0, 1, 1, 0, 0])
+    
+    
 if __name__ == '__main__':
   tf.test.main()
