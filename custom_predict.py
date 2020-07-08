@@ -30,10 +30,8 @@ GCP_BUCKET = "gs://trained_models_yechen/"
 
 def __download_models(list_of_models):
     """Download trained models from Google Cloud Bucket.
-
     Args:
         list_of_models: a list of trained models
-
     Raises:
         Exception: if the specified trained model does not exist at the GCP storage bucket 
     """
@@ -54,10 +52,8 @@ def __download_models(list_of_models):
 
 def __validate_scripts(args):
     """Download LaserTagger and Bert scripts, and validate input file.
-
     Args:
         args: Command line arguments
-
     Raises:
         Exception: If intput file path does not exist
         Exception: If LaserTagger folder does not exist
@@ -85,11 +81,9 @@ def __clean_up():
 
 def __preprocess_input(input_file_path, whether_score):
     """Preprocess the input sentences to fit the format of lasertagger input.
-
     Args:
         input_file_path: the absolute path to the input file
         whether_score: whether scoring is needed. If scoring is needed, two columns are expected in the input file.
-
     Raises:
         Exception: If scoring is required, but target is not found in the input file
     """
@@ -144,7 +138,6 @@ def main(args):
     models whose names are specified in the list_of_models, and compute exact score and SARI score if whether_score is
     true. The predictions are stored in an output file pred.tsv. If scores are computed, the scores are stored in
     an output file score.tsv.
-
     Args:
         args: command line arguments.
     """
@@ -164,13 +157,17 @@ def main(args):
     # calculate and print predictions to output file 
     for model in list_of_models:
         print("------Running on model", model, "-------")
-        subprocess.call(['python', os.path.expanduser(args.abs_path_to_lasertagger) + '/predict_main.py',
+        prediction_command = ['python', os.path.expanduser(args.abs_path_to_lasertagger) + '/predict_main.py',
                          "--input_format=wikisplit",
                          "--label_map_file=./" + model + "/label_map.txt",
                          "--input_file=" + "./" + TEMP_FOLDER_NAME + "/cleaned_data.tsv",
                          "--saved_model=./" + model + "/export_model",
                          "--vocab_file=" + os.path.expanduser(args.abs_path_to_bert) + "/vocab.txt",
-                         "--output_file=" + "./" + TEMP_FOLDER_NAME + "/output_" + model + ".tsv"],
+                         "--output_file=" + "./" + TEMP_FOLDER_NAME + "/output_" + model + ".tsv", 
+                         "--embedding_type=" + args.embedding_type]
+        if args.masking:
+            prediction_command.append("--enable_masking=true")
+        subprocess.call(prediction_command,
                         cwd=os.path.expanduser("~"))
         print("------Completed running on model", model, "-------")
 
@@ -268,6 +265,7 @@ if __name__ == "__main__":
       -h, --help            show help message and exit
       -score                if added, compute scores for the predictions
       -grammar              if added, automatically apply grammar check on predictions
+      -masking              If added, numbers and symbols will be masked.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("path_to_input_file", help="the directory of the model output")
@@ -279,6 +277,12 @@ if __name__ == "__main__":
     parser.add_argument("-score", action="store_true", help="if added, compute scores for the predictions")
     parser.add_argument("-grammar", action="store_true",
                         help="if added, automatically apply grammar check on predictions")
+    parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
+    parser.add_argument("embedding_type", help="type of embedding. Must be one of [Normal, POS, Sentence]. "
+                        "Normal: segment id is all zero. POS: part of speech tagging. Sentence: sentence tagging.")
+    
     arguments = parser.parse_args()
+    if arguments.embedding_type not in ["Normal", "POS", "Sentence"]:
+        raise ValueError("Embedding_type must be Normal, POS, or Sentence")
 
     main(arguments)
