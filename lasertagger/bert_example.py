@@ -31,6 +31,9 @@ from typing import Mapping, MutableSequence, Optional, Sequence, Text
 import nltk
 import custom_utils
 
+POS_START_TAG = 2
+POS_END_TAG = 41
+
 class BertExample(object):
   """Class for training and inference examples for BERT.
 
@@ -190,7 +193,7 @@ class BertExampleBuilder(object):
     if self._embedding_type == "Normal":
         segment_ids = [0] * len(input_ids)
     elif self._embedding_type == "POS":
-        segment_ids = [2] + special_tags + [41]
+        segment_ids = [POS_START_TAG] + special_tags + [POS_END_TAG]
     elif self._embedding_type == "Sentence":
         segment_ids = [0] + special_tags + [0]
     else:
