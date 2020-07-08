@@ -26,10 +26,15 @@ from absl import flags
 
 import run_lasertagger_utils
 import utils
+import os
+import numpy as np
+import re
 
 import tensorflow as tf
 
 FLAGS = flags.FLAGS
+# The index in the POS tagging corresponding to verb
+VERB_TAGS = [28, 29, 30, 31, 32, 33]
 
 ## Required parameters
 
@@ -115,7 +120,8 @@ flags.DEFINE_string(
 flags.DEFINE_string("master", None,
                     "Optional address of the master for the workers.")
 flags.DEFINE_string("export_path", None, "Path to save the exported model.")
-
+flags.DEFINE_float("verb_loss_weight", 0, "The weight of the loss for deleting"
+                  "a verb")
 
 def file_based_input_fn_builder(input_file, max_seq_length,
                                 is_training, drop_remainder):
@@ -224,6 +230,18 @@ def main(_):
   else:
     num_train_steps, num_warmup_steps = None, None
 
+  
+  if FLAGS.verb_loss_weight < 0:
+        raise ValueError("the weight of verb loss should be >= 0")
+  
+  with open(os.path.expanduser(FLAGS.label_map_file)) as f:
+    lines = f.readlines()
+
+  delete_tags = np.zeros(len(lines))
+  for i, line in enumerate(lines):
+    if re.match("DELETE", line):
+        delete_tags[i] = 1
+  
   model_fn = run_lasertagger_utils.ModelFnBuilder(
       config=model_config,
       num_tags=num_tags,
@@ -233,7 +251,10 @@ def main(_):
       num_warmup_steps=num_warmup_steps,
       use_tpu=FLAGS.use_tpu,
       use_one_hot_embeddings=FLAGS.use_tpu,
-      max_seq_length=FLAGS.max_seq_length).build()
+      max_seq_length=FLAGS.max_seq_length,
+      verb_deletion_loss_weight=FLAGS.verb_loss_weight, 
+      verb_tags=VERB_TAGS, 
+      delete_tags=delete_tags).build()
 
   # If TPU is not available, this will fall back to normal Estimator on CPU
   # or GPU.
@@ -300,4 +321,5 @@ def main(_):
 if __name__ == "__main__":
   flags.mark_flag_as_required("model_config_file")
   flags.mark_flag_as_required("label_map_file")
+  tf.compat.v1.enable_eager_execution()
   tf.app.run()
