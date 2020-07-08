@@ -121,6 +121,12 @@ def __set_parameters(args):
     if args.embedding_type not in ["Normal", "POS", "Sentence"]:
         raise ValueError("Embedding_type must be Normal, POS, or Sentence")
     
+    if args.verb_deletion_loss != 0 and args.embedding_type != "POS":
+        raise ValueError("Verb deletion loss is non-zero and the embedding type is not POS.")
+    
+    if args.verb_deletion_loss < 0:
+        raise ValueError("Verb deletion loss weight must be greater than 0.")
+    
     global vocab_size, train_batch_size, learning_rate, num_train_epochs, warmup_proportion
     vocab_size = str(args.vocab_size)
     train_batch_size = str(args.train_batch_size)
@@ -228,7 +234,9 @@ def __training(args):
                        " --train_batch_size=" + train_batch_size + \
                        " --learning_rate=" + learning_rate + \
                        " --num_train_epochs=" + num_train_epochs + \
-                       " --warmup_proportion" + warmup_proportion
+                       " --warmup_proportion" + warmup_proportion + \
+                       " --verb_loss_weight" + args.verb_deletion_loss
+    
     if args.use_tpu:
         print("Running on cloud TPU")
         bucket_name = args.gbucket
@@ -343,6 +351,9 @@ if __name__ == "__main__":
       -full_attention FULL_ATTENTION
                             Whether to use full attention in the decoder. default=false
       -masking              If added, numbers and symbols will be masked.
+      -verb_deletion_loss VERB_DELETION_LOSS
+                            The weight of verb deletion loss. Need to be >= 0. default=0. Cannot be set to a number 
+                            other than 0 unless the embedding_type is POS.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("model_output_dir", help="the directory of the model output")
@@ -375,8 +386,11 @@ if __name__ == "__main__":
     parser.add_argument("-hidden_size", type=int, default=768, help="The size of the hidden layer size in the decoder. default=768")
     parser.add_argument("-num_attention_head", type=int, default=4, help="The number of attention heads in the decoder. default=4")
     parser.add_argument("-filter_size", type=int, default=3072, help="The size of the filter in the decoder. default=3072")
-    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")   
+    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")  
+    
     parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
+    parser.add_argument("-verb_deletion_loss", type=float, help="The weight of verb deletion loss. Need to be >= 0. default=0."
+                        "Cannot be set to a number other than 0 unless the embedding_type is POS.", default=0)
     args = parser.parse_args()
     
     if args.use_tpu and (args.gbucket is None):
