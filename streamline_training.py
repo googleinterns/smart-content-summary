@@ -235,7 +235,7 @@ def __training(args):
                        " --learning_rate=" + learning_rate + \
                        " --num_train_epochs=" + num_train_epochs + \
                        " --warmup_proportion" + warmup_proportion + \
-                       " --verb_loss_weight" + args.verb_deletion_loss
+                       " --verb_loss_weight" + str(args.verb_deletion_loss)
     
     if args.use_tpu:
         print("Running on cloud TPU")
