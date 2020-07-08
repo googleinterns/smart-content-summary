@@ -161,7 +161,6 @@ def whitespace_tokenize(text):
 class FullTokenizer(object):
   """Runs end-to-end tokenziation."""
 
-  
   def __init__(self, vocab_file, lower_case=True, enable_mask=False):
     self.vocab = load_vocab(vocab_file)
     self.inv_vocab = {v: k for k, v in self.vocab.items()}
@@ -197,6 +196,7 @@ class FullTokenizer(object):
                 masked_token = token
             ids.append(self.vocab[masked_token])
         return ids
+
 
   def convert_ids_to_tokens(self, ids):
     return convert_by_vocab(self.inv_vocab, ids)

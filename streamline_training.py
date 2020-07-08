@@ -301,6 +301,7 @@ if __name__ == "__main__":
         [-number_layer NUMBER_LAYER] [-hidden_size HIDDEN_SIZE] [-num_attention_head NUM_ATTENTION_HEAD]
         [-filter_size FILTER_SIZE] [-full_attention FULL_ATTENTION]
         model_output_dir abs_path_to_lasertagger abs_path_to_bert training_file tuning_file embedding_type
+
     positional arguments:
       model_output_dir      the directory of the model output
       abs_path_to_lasertagger
@@ -310,6 +311,7 @@ if __name__ == "__main__":
       tuning_file           path to tuning samples
       embedding_type        type of embedding. Must be one of [Normal, POS, Sentence].
                             Normal: segment id is all zero. POS: part of speech tagging. Sentence: sentence tagging.
+
     optional arguments:
       -h, --help            show this help message and exit
       -vocab_size VOCAB_SIZE
@@ -373,8 +375,7 @@ if __name__ == "__main__":
     parser.add_argument("-hidden_size", type=int, default=768, help="The size of the hidden layer size in the decoder. default=768")
     parser.add_argument("-num_attention_head", type=int, default=4, help="The number of attention heads in the decoder. default=4")
     parser.add_argument("-filter_size", type=int, default=3072, help="The size of the filter in the decoder. default=3072")
-    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")
-    
+    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")   
     parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
     args = parser.parse_args()
     
