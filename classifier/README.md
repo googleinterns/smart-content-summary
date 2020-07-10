@@ -36,8 +36,9 @@ python preprocess_MS_dataset_for_classifier.py INPUT_DIR NUM_TUNE NUM_VALID
 Six tsv files will be saved at your home directory. Three corresponding to grammaring scoring,
 and three for meaning preservation scoring. Next, run the following command 
 on all six tsv files to convert the samples to tf_record (i.e. change the `INPUT_FILE`
-to the path to training, tuning, and validation files and change 
-`TYPE_OF_INPUT` to grammar/meaning_train/tune/valid respectively).
+to the path to training, tuning, and validation files, change `TYPE_OF_INPUT` to 
+grammar/meaning_train/tune/valid, and change `classifier_type` to either 
+Grammar or Meaning respectively).
 
 ```
 export INPUT_FILE=/path/to/input/file
@@ -48,6 +49,7 @@ python preprocess_main.py \
   --input_file=$INPUT_FILE \
   --output_tfrecord=${OUTPUT_DIR}/${TYPE_OF_INPUT}.tf_record \
   --vocab_file=${BERT_BASE_DIR}/vocab.txt \
+  --classifier_type Grammar
 ```
 
 ### 2. Training
