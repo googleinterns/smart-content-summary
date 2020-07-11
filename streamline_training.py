@@ -274,7 +274,7 @@ def __training(args):
     subprocess.call(training_command.split(), cwd=lasertagger_dir)
 
     if args.use_tpu:
-        subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model ./" + folder_name).split(),
+        subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model " + output_dir).split(),
                         cwd=os.path.expanduser("~"))
 
     print("------ Completed training ------")
