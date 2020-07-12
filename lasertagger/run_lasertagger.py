@@ -30,6 +30,7 @@ import os
 import numpy as np
 import re
 
+import pandas as pd
 import tensorflow as tf
 
 FLAGS = flags.FLAGS
@@ -234,8 +235,14 @@ def main(_):
   if FLAGS.verb_loss_weight < 0:
         raise ValueError("the weight of verb loss should be >= 0")
   
-  with open(os.path.expanduser(FLAGS.label_map_file)) as f:
-    lines = f.readlines()
+  if not FLAGS.use_tpu:
+    with open(os.path.expanduser(FLAGS.label_map_file)) as f:
+        lines = f.readlines()
+  else:
+    lines = pd.read_csv(FLAGS.label_map_file, sep="\n", header=None)
+    lines = lines.values.tolist()
+    lines = [item for sublist in lines for item in sublist]
+    
 
   delete_tags = np.zeros(len(lines))
   for i, line in enumerate(lines):
