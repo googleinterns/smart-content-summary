@@ -113,7 +113,7 @@ class ModelFnBuilder(object):
         kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
         name="layer1")
     
-    flattened_layer1_output = tf.layers.flatten(layer1_output)
+    flattened_layer1_output = tf.reshape(layer1_output, [-1, self._max_seq_length])
     logits = tf.expand_dims(tf.layers.dense(
         flattened_layer1_output, 
         self._num_categories,
