@@ -242,8 +242,8 @@ def main(_):
     lines = pd.read_csv(FLAGS.label_map_file, sep="\n", header=None)
     lines = lines.values.tolist()
     lines = [item for sublist in lines for item in sublist]
-    
-
+  lines = [line.strip() for line in lines] 
+  
   delete_tags = np.zeros(len(lines))
   for i, line in enumerate(lines):
     if re.match("DELETE", line):
