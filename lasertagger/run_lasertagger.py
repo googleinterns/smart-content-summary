@@ -36,6 +36,7 @@ import tensorflow as tf
 FLAGS = flags.FLAGS
 # The index in the POS tagging corresponding to verb
 VERB_TAGS = [28, 29, 30, 31, 32, 33]
+VERB_TAGS_CONCISE = [3]
 
 ## Required parameters
 
@@ -123,6 +124,8 @@ flags.DEFINE_string("master", None,
 flags.DEFINE_string("export_path", None, "Path to save the exported model.")
 flags.DEFINE_float("verb_loss_weight", 0, "The weight of the loss for deleting"
                   "a verb")
+flasg.DEFINE_string("embedding_type", None, "Type of embedding. ['Normal', 'POS', " 
+                    "'POS_concise', 'Sentence']")
 
 def file_based_input_fn_builder(input_file, max_seq_length,
                                 is_training, drop_remainder):
@@ -191,6 +194,12 @@ def main(_):
   if not (FLAGS.do_train or FLAGS.do_eval or FLAGS.do_export):
     raise ValueError("At least one of `do_train`, `do_eval` or `do_export` must"
                      " be True.")
+  
+  if FLAGS.verb_loss_weight > 0 
+    and (FLAGS.embedding_type is None or 
+         FLAGS.embedding_type not in ["POS", "POS_concise"]):
+    raise ValueError("When the verb loss weight > 0, must specify embedding_type "
+                     "to be either POS or POS_concise")
 
   model_config = run_lasertagger_utils.LaserTaggerConfig.from_json_file(
       FLAGS.model_config_file)
@@ -242,13 +251,19 @@ def main(_):
     lines = pd.read_csv(FLAGS.label_map_file, sep="\n", header=None)
     lines = lines.values.tolist()
     lines = [item for sublist in lines for item in sublist]
-  lines = [line.strip() for line in lines] 
-  
+  lines = [line.strip() for line in lines]  
+
   delete_tags = np.zeros(len(lines))
   for i, line in enumerate(lines):
     if re.match("DELETE", line):
         delete_tags[i] = 1
   
+  if FLAGS.embedding_type == "POS":
+    model_verb_tags = VERB_TAGS
+  elif FLAGS.embedding_type == "POS_concise":
+    model_verb_tags = VERB_TAGS_CONCISE
+  else:
+    model_verb_tags = []
   model_fn = run_lasertagger_utils.ModelFnBuilder(
       config=model_config,
       num_tags=num_tags,
@@ -260,7 +275,7 @@ def main(_):
       use_one_hot_embeddings=FLAGS.use_tpu,
       max_seq_length=FLAGS.max_seq_length,
       verb_deletion_loss_weight=FLAGS.verb_loss_weight, 
-      verb_tags=VERB_TAGS, 
+      verb_tags=model_verb_tags, 
       delete_tags=delete_tags).build()
 
   # If TPU is not available, this will fall back to normal Estimator on CPU
