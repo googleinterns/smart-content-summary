@@ -57,7 +57,7 @@ def export_lasertagger_config_to_json(output_dir: Text, bert_type: Text, t2t: bo
     elif bert_type == BERT_TYPE_POS:
         vocab_type = BERT_POS_VOCAB_TYPE_NUMBER
         vocab_size = BERT_POS_VOCAB_SIZE
-    elif bert_ytpe == BERT_TYPE_POS_CONCISE:
+    elif bert_type == BERT_TYPE_POS_CONCISE:
         vocab_type = BERT_POS_CONCISE_VOCAB_TYPE_NUMBER
         vocab_size = BERT_POS_CONCISE_VOCAB_SIZE
     else:
