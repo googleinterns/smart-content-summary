@@ -257,7 +257,8 @@ class BertExampleBuilder(object):
             pieces = self._tokenizer.tokenize(token)
             for piece in pieces:
                 sentence_tags.extend([sentence_counter])
-                if piece == ".":
+                if piece in [".", ",", ";", "!", "?", ":", 
+                               "##.", "##,", "##;", "##!", "##?", "##:"]:
                     sentence_counter = 1 - sentence_counter
         return bert_tokens, bert_labels, token_start_indices, sentence_tags
     else:
