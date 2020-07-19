@@ -35,7 +35,7 @@ def convert_to_pos(tokens: List[Text], pos_type: Text) -> List[int]:
                     "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB", '.', 'X']
         tokens_pos_tags = nltk.pos_tag(tokens)
     elif pos_type == "POS_concise":
-        POS_tags = ["VERB", "NOUN", "PRON", "ADJ", "ADV", "ADP", "CONJ", "DET", 
+        pos_tags = ["VERB", "NOUN", "PRON", "ADJ", "ADV", "ADP", "CONJ", "DET", 
                     "NUM", "PRT", "X", "."]
         tokens_pos_tags = nltk.pos_tag(tokens, tagset='universal')
     else:
@@ -86,8 +86,9 @@ def __replace_unused_vocab(vocab_list, new_vocab):
     """    
     if new_vocab not in vocab_list:
         pattern = re.compile('\[UNUSED_.*\]\n')
+        patter_lowercase = re.compile('\[unused.*\]\n')
         for i, vocab in enumerate(vocab_list):
-            if re.match(pattern, vocab):
+            if re.match(pattern, vocab) or re.match(patter_lowercase, vocab):
                 vocab_list[i] = new_vocab
                 return vocab_list
         raise IndexError('There is no unused vocab in the list.')
