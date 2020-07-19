@@ -124,7 +124,7 @@ flags.DEFINE_string("master", None,
 flags.DEFINE_string("export_path", None, "Path to save the exported model.")
 flags.DEFINE_float("verb_loss_weight", 0, "The weight of the loss for deleting"
                   "a verb")
-flasg.DEFINE_string("embedding_type", None, "Type of embedding. ['Normal', 'POS', " 
+flags.DEFINE_string("embedding_type", None, "Type of embedding. ['Normal', 'POS', " 
                     "'POS_concise', 'Sentence']")
 
 def file_based_input_fn_builder(input_file, max_seq_length,
@@ -195,8 +195,7 @@ def main(_):
     raise ValueError("At least one of `do_train`, `do_eval` or `do_export` must"
                      " be True.")
   
-  if FLAGS.verb_loss_weight > 0 
-    and (FLAGS.embedding_type is None or 
+  if FLAGS.verb_loss_weight > 0 and (FLAGS.embedding_type is None or 
          FLAGS.embedding_type not in ["POS", "POS_concise"]):
     raise ValueError("When the verb loss weight > 0, must specify embedding_type "
                      "to be either POS or POS_concise")
