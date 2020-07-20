@@ -110,11 +110,10 @@ def main(args):
 
         print("------- Including", number_of_pos_sample_to_include, "samples from the cola dataset.")
         
-        MS_sentences = MS_sentences + spaced_sentences_positive[0:number_of_pos_sample_to_include] + \
-                       spaced_sentences_negative
-        MS_ratings = MS_ratings + [1] * number_of_pos_sample_to_include + \
-                     [0] * len(spaced_sentences_negative)
-        
+    MS_sentences = MS_sentences + spaced_sentences_positive[0:number_of_pos_sample_to_include] + \
+                   spaced_sentences_negative
+    MS_ratings = MS_ratings + [1] * number_of_pos_sample_to_include + [0] * len(spaced_sentences_negative)
+
     actual_negative_rate = (number_of_MS_samples_in_each_category[0] + 
                             len(spaced_sentences_negative)) / \
                             (sum(number_of_MS_samples_in_each_category) + 
