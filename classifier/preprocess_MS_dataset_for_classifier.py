@@ -47,9 +47,9 @@ def __process_row(row):
         current_original_sentence: the original sentence of the row
         current_shortened_sentences_list: a list of summaries corresponding to the current_original_sentence
         grammar_ratings_list: a list of grammar ratings of the summaries in 
-          current_shortened_sentences_list (0 being the worst and 2 being the best)
+          current_shortened_sentences_list (0 being incorrect or unacceptable and 1 being acceptable)
         meaning_ratings_list: a list of meaning ratings of the summaries in 
-          current_shortened_sentences_list (0 being the worst and 2 being the best)
+          current_shortened_sentences_list (0 being incorrect or unacceptable and 1 being acceptable)
     """
     row_flattened = []
     for i in range(len(row)):
@@ -101,10 +101,10 @@ def __find_grammar_meaning_ratings(ratings_list):
     grammar_ratings = []
     meaning_ratings = []
     for rating_list in ratings_list:
-        grammar_ratings.append(
-            __find_most_common_bucket(rating_list, GRAMMAR_GRADING_BUCKET))
-        meaning_ratings.append(
-            __find_most_common_bucket(rating_list, MEANING_GRADING_BUCKET))
+        grammar_ratings.append(int(
+            __find_most_common_bucket(rating_list, GRAMMAR_GRADING_BUCKET)>=2))
+        meaning_ratings.append(int(
+            __find_most_common_bucket(rating_list, MEANING_GRADING_BUCKET)>=2))
     return grammar_ratings, meaning_ratings
         
     
