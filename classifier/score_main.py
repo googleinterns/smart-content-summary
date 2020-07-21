@@ -33,20 +33,58 @@ def main(file_path):
     targets = np.array(targets)
     predictions = np.array(predictions)
     overall_accuracy = np.sum(np.equal(targets, predictions))/number_of_samples
-    print("Accuracy: {:.2f}".format(overall_accuracy))
-    
-    correct_counts_breakdown = {}
-    total_counts_breakdown = {}
+    print("Accuracy: {:.4f}".format(overall_accuracy)) 
     
     for category in np.unique(targets):
-        this_category_index = np.equal(targets, category)
-        category_accuracy = np.sum(np.equal(targets[this_category_index], 
-                                           predictions[this_category_index]))/ np.sum(this_category_index)
-        print("Accuracy for category", category, "with", np.sum(this_category_index), 
-              "samples is {:.2f}".format(category_accuracy))
+        precision, recall, f1 = _calculate_recall_precision(predictions, targets, 
+                                                            category)
+        print("----- For category", category, "-----")
+        print("Precision is {:.4f}".format(precision))
+        print("Recall is {:.4f}".format(recall))
+        print("F1 is {:.4f}".format(f1))
     
     
+def _calculate_recall_precision(predictions, targets, positive_class):
+    '''Calculate the recall and precision score of binary classification.
+    Args:
+      predictions: a list of predictions
+      targets: a list of targets
+      positive_class: the class that is considered as the positive class
+    
+    Returns:
+      precision: true positive / (true positive + false positive)
+      recall: true positive / (true positive + false negative)
+      F1 score: 2 * precision * recall / (precision + recall)
+    '''
+    true_positive = 0
+    false_positive = 0
+    false_negative = 0
+    
+    for index, prediction in enumerate(predictions):
+        if targets[index] == positive_class:
+            if prediction == positive_class:
+                true_positive += 1
+            else:
+                false_negative += 1
+        elif prediction == positive_class:
+            false_positive += 1
+            
+    if true_positive + false_positive != 0:
+        precision = true_positive/(true_positive + false_positive)
+    else: 
+        precision = float('nan')
+        print("All samples are predicted not to be", positive_class)
         
+    if true_positive + false_negative != 0:
+        recall = true_positive/(true_positive + false_negative)
+    else:
+        recall = float("nan")
+        print("None of the samples are predicted to be class", 
+              positive_class)
+    score_f1 = 2*precision*recall/(precision + recall)
+    
+    return precision, recall, score_f1
+    
 
 if __name__ == "__main__":
     """
