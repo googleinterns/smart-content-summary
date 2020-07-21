@@ -47,7 +47,7 @@ def yield_sources_and_targets_meaning(input_file):
     input_file: Path to the input file.
 
   Yields:
-    Tuple with (list of source texts, target text).
+    A tuple of (list of source texts, target text).
   """
   with tf.io.gfile.GFile(input_file) as f:
     for line in f:
@@ -63,7 +63,7 @@ def yield_sources_and_targets_grammar(input_file):
     input_file: Path to the input file.
 
   Yields:
-    Tuple with (list of source texts, target text).
+    A tuple of (list of source texts, target text).
   """
   with tf.io.gfile.GFile(input_file) as f:
     for line in f:
