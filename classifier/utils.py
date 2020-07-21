@@ -51,8 +51,9 @@ def yield_sources_and_targets_meaning(input_file):
   """
   with tf.io.gfile.GFile(input_file) as f:
     for line in f:
-      source, summary, score = line.rstrip('\n').split('\t')
-      yield [source], summary, score
+      if len(line.rstrip('\n').split('\t')) == 3:
+          source, summary, score = line.rstrip('\n').split('\t')
+          yield [source], summary, score
         
         
 def yield_sources_and_targets_grammar(input_file):
