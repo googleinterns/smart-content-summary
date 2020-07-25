@@ -33,6 +33,7 @@ import custom_utils
 
 POS_START_TAG = 2
 POS_END_TAG = 41
+POS_CONCISE_END_TAG = 16
 
 class BertExample(object):
   """Class for training and inference examples for BERT.
@@ -125,7 +126,7 @@ class BertExampleBuilder(object):
       lower_case: Whether to lower case the input text. Should be True for
         uncased models and False for cased models.
       converter: Converter from text targets to tags.
-      embedding_type: POS or Normal or Sentence.
+      embedding_type: POS or POS_concise or Normal or Sentence.
       enable_mask: whether to mask numbers and symbols
     """
     self._label_map = label_map
@@ -136,8 +137,8 @@ class BertExampleBuilder(object):
     self._converter = converter
     self._pad_id = self._get_pad_id()
     self._keep_tag_id = self._label_map['KEEP']
-    if embedding_type not in ["POS", "Normal", "Sentence"]:
-        raise ValueError("Embedding_type must be Normal, POS, or Sentence") 
+    if embedding_type not in ["POS", "Normal", "Sentence", "POS_concise"]:
+        raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence") 
     self._embedding_type = embedding_type
 
   def build_bert_example(
@@ -194,10 +195,12 @@ class BertExampleBuilder(object):
         segment_ids = [0] * len(input_ids)
     elif self._embedding_type == "POS":
         segment_ids = [POS_START_TAG] + special_tags + [POS_END_TAG]
+    elif self._embedding_type == "POS_concise":
+        segment_ids = [POS_START_TAG] + special_tags + [POS_CONCISE_END_TAG]
     elif self._embedding_type == "Sentence":
         segment_ids = [0] + special_tags + [0]
     else:
-        raise ValueError("Embedding_type must be Normal, POS, or Sentence") 
+        raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence") 
 
     example = BertExample(
         input_ids=input_ids,
@@ -219,7 +222,7 @@ class BertExampleBuilder(object):
     Args:
       tokens: Tokens to be split.
       labels: Labels (one per token) to be split.
-      embedding_type: Normal, POS, or Sentence
+      embedding_type: Normal, POS, POS_consie, or Sentence
 
     Returns:
       4-tuple with the split tokens, split labels, the indices of the
@@ -240,9 +243,9 @@ class BertExampleBuilder(object):
     
     if embedding_type == "Normal":
         return bert_tokens, bert_labels, token_start_indices, None
-    elif embedding_type == "POS":
+    elif embedding_type in ["POS", "POS_concise"]:
+        tokens_pos = custom_utils.convert_to_pos(tokens, pos_type=embedding_type)
         pos_tags = []
-        tokens_pos = custom_utils.convert_to_pos(tokens)
         for i, token in enumerate(tokens):
             pieces = self._tokenizer.tokenize(token)
             pos_tags.extend([tokens_pos[i]] * len(pieces))
@@ -254,11 +257,12 @@ class BertExampleBuilder(object):
             pieces = self._tokenizer.tokenize(token)
             for piece in pieces:
                 sentence_tags.extend([sentence_counter])
-                if piece == ".":
+                if piece in [".", ",", ";", "!", "?", ":", 
+                               "##.", "##,", "##;", "##!", "##?", "##:"]:
                     sentence_counter = 1 - sentence_counter
         return bert_tokens, bert_labels, token_start_indices, sentence_tags
     else:
-        raise ValueError("Embedding_type must be Normal, POS, or Sentence")
+        raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence")
 
   def _truncate_list(self, x):
     """Returns truncated version of x according to the self._max_seq_length."""

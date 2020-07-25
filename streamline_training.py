@@ -25,13 +25,15 @@ from typing import Dict, Text
 GCP_BUCKET = "gs://trained_models_yechen/"
 BERT_TYPE_BASE = "Base"
 BERT_TYPE_POS = "POS"
+BERT_TYPE_POS_CONCISE = "POS_concise"
 
 BERT_BASE_VOCAB_TYPE_NUMBER = 2
 BERT_POS_VOCAB_TYPE_NUMBER = 42
+BERT_POS_CONCISE_VOCAB_TYPE_NUMBER = 16
 
 BERT_BASE_VOCAB_SIZE = 28996
 BERT_POS_VOCAB_SIZE = 32000
-
+BERT_POS_CONCISE_VOCAB_SIZE = 32000
 
 def export_lasertagger_config_to_json(output_dir: Text, bert_type: Text, t2t: bool, number_of_layer: int, 
                                       hidden_size: int, attention_heads: int, filter_size: int, 
@@ -40,7 +42,7 @@ def export_lasertagger_config_to_json(output_dir: Text, bert_type: Text, t2t: bo
     
     Args:
         file_dir: the directory where the json file will be stored
-        bert_type: the type of Bert. There are two types: Base and POS
+        bert_type: the type of Bert. There are three types: Base, POS, and POS_concise
         t2t: If True, will use autoregressive decoder. If False, will use feedforward decoder.
         number_of_layer: number of hidden layers in the decoder.
         hidden_size: the size of hidden layer in the decoder.
@@ -52,11 +54,14 @@ def export_lasertagger_config_to_json(output_dir: Text, bert_type: Text, t2t: bo
     if bert_type == BERT_TYPE_BASE:
         vocab_type = BERT_BASE_VOCAB_TYPE_NUMBER
         vocab_size = BERT_BASE_VOCAB_SIZE
-    elif bert_type == "POS":
+    elif bert_type == BERT_TYPE_POS:
         vocab_type = BERT_POS_VOCAB_TYPE_NUMBER
         vocab_size = BERT_POS_VOCAB_SIZE
+    elif bert_type == BERT_TYPE_POS_CONCISE:
+        vocab_type = BERT_POS_CONCISE_VOCAB_TYPE_NUMBER
+        vocab_size = BERT_POS_CONCISE_VOCAB_SIZE
     else:
-        raise ValueError("bert_type needs to be 'Base' or 'POS'.")
+        raise ValueError("bert_type needs to be 'Base', 'POS', or 'POS_concise'.")
         
     
     lasertagger_conf = {
@@ -118,8 +123,14 @@ def __set_parameters(args):
     Args:
         args: command line arguments
     """
-    if args.embedding_type not in ["Normal", "POS", "Sentence"]:
-        raise ValueError("Embedding_type must be Normal, POS, or Sentence")
+    if args.embedding_type not in ["Normal", "POS", "Sentence", "POS_concise"]:
+        raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence")
+    
+    if args.verb_deletion_loss != 0 and args.embedding_type not in ["POS", "POS_concise"]:
+        raise ValueError("Verb deletion loss is non-zero and the embedding type is not POS.")
+    
+    if args.verb_deletion_loss < 0:
+        raise ValueError("Verb deletion loss weight must be greater than 0.")
     
     global vocab_size, train_batch_size, learning_rate, num_train_epochs, warmup_proportion
     vocab_size = str(args.vocab_size)
@@ -199,10 +210,10 @@ def __training(args):
     """ Train the LaserTagger model."""
     print("------ Generating config file ------")
     
-    if args.embedding_type == "POS":
-        bert_type = "POS"
-    else:
+    if args.embedding_type in ["Normal", "Sentence"]:
         bert_type = "Base"
+    else:
+        bert_type = args.embedding_type
     
     export_lasertagger_config_to_json(output_dir, bert_type, args.t2t, args.number_layer, args.hidden_size, 
                                       args.num_attention_head, args.filter_size, args.full_attention)
@@ -228,7 +239,10 @@ def __training(args):
                        " --train_batch_size=" + train_batch_size + \
                        " --learning_rate=" + learning_rate + \
                        " --num_train_epochs=" + num_train_epochs + \
-                       " --warmup_proportion" + warmup_proportion
+                       " --warmup_proportion" + warmup_proportion + \
+                       " --verb_loss_weight" + str(args.verb_deletion_loss) + \
+                       " --embedding_type" + args.embedding_type
+    
     if args.use_tpu:
         print("Running on cloud TPU")
         bucket_name = args.gbucket
@@ -266,7 +280,7 @@ def __training(args):
     subprocess.call(training_command.split(), cwd=lasertagger_dir)
 
     if args.use_tpu:
-        subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model ./" + folder_name).split(),
+        subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model " + output_dir).split(),
                         cwd=os.path.expanduser("~"))
 
     print("------ Completed training ------")
@@ -343,6 +357,9 @@ if __name__ == "__main__":
       -full_attention FULL_ATTENTION
                             Whether to use full attention in the decoder. default=false
       -masking              If added, numbers and symbols will be masked.
+      -verb_deletion_loss VERB_DELETION_LOSS
+                            The weight of verb deletion loss. Need to be >= 0. default=0. Cannot be set to a number 
+                            other than 0 unless the embedding_type is POS.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("model_output_dir", help="the directory of the model output")
@@ -351,8 +368,9 @@ if __name__ == "__main__":
     parser.add_argument("abs_path_to_bert", help="absolute path to the folder where the pretrained BERT is located")
     parser.add_argument("training_file", help="path to training samples")
     parser.add_argument("tuning_file", help="path to tuning samples")
-    parser.add_argument("embedding_type", help="type of embedding. Must be one of [Normal, POS, Sentence]. "
-                        "Normal: segment id is all zero. POS: part of speech tagging. Sentence: sentence tagging.")
+    parser.add_argument("embedding_type", help="type of embedding. Must be one of [Normal, POS, POS_concise, Sentence]. "
+                        "Normal: segment id is all zero. POS: part of speech tagging. "
+                        "POS_concise: POS tagging with a smaller set of tags. Sentence: sentence tagging.")
     
     parser.add_argument("-vocab_size", type=int, help="vocab size. default = 500", default=500)
     parser.add_argument("-train_batch_size", type=int, help="batch size during training. default = 32", default=32)
@@ -375,8 +393,11 @@ if __name__ == "__main__":
     parser.add_argument("-hidden_size", type=int, default=768, help="The size of the hidden layer size in the decoder. default=768")
     parser.add_argument("-num_attention_head", type=int, default=4, help="The number of attention heads in the decoder. default=4")
     parser.add_argument("-filter_size", type=int, default=3072, help="The size of the filter in the decoder. default=3072")
-    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")   
+    parser.add_argument("-full_attention", type=bool, default=False, help="Whether to use full attention in the decoder. default=false")  
+    
     parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
+    parser.add_argument("-verb_deletion_loss", type=float, help="The weight of verb deletion loss. Need to be >= 0. default=0."
+                        "Cannot be set to a number other than 0 unless the embedding_type is POS or POS_concise.", default=0)
     args = parser.parse_args()
     
     if args.use_tpu and (args.gbucket is None):
