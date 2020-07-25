@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Cluster keywords based on the result of summarization."""
+
 import argparse
 import csv
 import os
-
-"""Cluster keywords based on the result of summarization."""
 
 
 def main(args):
