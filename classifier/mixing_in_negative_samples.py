@@ -44,23 +44,24 @@ def combine_two_tsv_files(original_file_path, append_file_path, number_of_new_li
     if number_of_new_lines > len(new_lines):
         raise ValueError("The target ratio is too big given the number of synthetic data.")
     
-   # Reshuffle the dataset after mixing in new sample.
-    random.shuffle(new_lines)
-    shuffled_index = list(range(len(original_lines) + number_of_new_lines))
-    random.shuffle(shuffled_index)
-    
     # Grammar classifier only needs one input while meaning classifier needs two
     number_of_inputs = len(original_lines[0].rstrip().split("\t")) - 1
     
-    with open(os.path.expanduser(output_file_path), 'wt') as out_file:
-        tsv_writer = csv.writer(out_file, delimiter='\t')        
-        for index in shuffled_index:
-            if index >= len(original_lines):
-                new_line = new_lines.pop().rstrip().split("\t")[- number_of_inputs:]
-                new_line.append("0")
-            else:
-                new_line = original_lines[index].rstrip().split("\t")           
-            tsv_writer.writerow(new_line)
+    out_file = open(os.path.expanduser(output_file_path), 'wt')
+    tsv_writer = csv.writer(out_file, delimiter='\t') 
+    
+    # Reshuffle the dataset after mixing in new sample.
+    random.shuffle(new_lines)
+    shuffled_index = list(range(len(original_lines) + number_of_new_lines))
+    random.shuffle(shuffled_index)
+    for index in shuffled_index:
+        if index >= len(original_lines):
+            new_line = new_lines.pop().rstrip().split("\t")[- number_of_inputs:]
+            new_line.append("0")
+        else:
+            new_line = original_lines[index].rstrip().split("\t")           
+        tsv_writer.writerow(new_line)
+    out_file.close()
     print("----- Data file saved to", output_file_path, "-----")
             
 
@@ -77,12 +78,13 @@ def calculate_number_of_synthetic_data_to_mix(original_data_file, target_ratio):
     """
     total_number_of_samples = 0
     original_negative_sample_count = 0
-    with open(original_data_file) as tsv_file:
-        read_tsv = csv.reader(tsv_file, delimiter="\t")
-        for line in read_tsv:
-            if int(line[-1]) == 0:
-                original_negative_sample_count += 1
-            total_number_of_samples += 1
+    tsv_file = open(original_data_file)
+    read_tsv = csv.reader(tsv_file, delimiter="\t")
+    for line in read_tsv:
+        if int(line[-1]) == 0:
+            original_negative_sample_count += 1
+        total_number_of_samples += 1
+    tsv_file.close()
     return int((original_negative_sample_count - 
             total_number_of_samples * target_ratio)/(target_ratio - 1))
         
