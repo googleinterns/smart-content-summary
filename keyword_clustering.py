@@ -27,25 +27,23 @@ def main(args):
     shortened_keywords_list = []
     total_keyword_counts = 0
     
-    with open(input_file_path) as f:
-        read_tsv = csv.reader(f, delimiter="\t") 
-        model_name_list = next(read_tsv)[1:]
-        for i in range(len(model_name_list)):
-            shortened_keywords_list.append({})
-            
-        for line in read_tsv:
-            total_keyword_counts += 1
-            for index, shortened_keyword in enumerate(line[1:]):
-                shortened_keyword = shortened_keyword.lower()
-                if shortened_keyword == "":
-                    continue
-                if shortened_keyword not in shortened_keywords_list[index]:
-                    shortened_keywords_list[index][shortened_keyword] = [line[0]]
-                else:
-                    shortened_keywords_list[index][shortened_keyword].append(line[0])
-    
-    if len(model_name_list) == 1:
-        model_name_list = [""]
+    f = open(input_file_path)
+    read_tsv = csv.reader(f, delimiter="\t") 
+    model_name_list = next(read_tsv)[1:]
+    for i in range(len(model_name_list)):
+        shortened_keywords_list.append({})
+
+    for line in read_tsv:
+        total_keyword_counts += 1
+        for index, shortened_keyword in enumerate(line[1:]):
+            shortened_keyword = shortened_keyword.lower()
+            if shortened_keyword == "":
+                continue
+            if shortened_keyword not in shortened_keywords_list[index]:
+                shortened_keywords_list[index][shortened_keyword] = [line[0]]
+            else:
+                shortened_keywords_list[index][shortened_keyword].append(line[0])
+    f.close()
     
     output_file_path = args.output_file_path
     file_name = output_file_path.split("/")[-1].split(".")[0]
@@ -57,14 +55,16 @@ def main(args):
             model = ""
         this_output_file_path = "/".join(output_file_path.split("/")[:-1]) + "/" + \
             file_name + "_" + model + ".tsv"
-        with open(os.path.expanduser(this_output_file_path), 'wt') as f:
-            tsv_writer = csv.writer(f, delimiter='\t')
-            for shortened_keywords, keyword_list in shortened_keywords_list[index].items():
-                if len(keyword_list) > 1:
-                    clustered_keywords += len(keyword_list)        
-                    keyword_list.insert(0, len(keyword_list))
-                    keyword_list.insert(0, shortened_keywords)
-                    tsv_writer.writerow(keyword_list)        
+        
+        f = open(os.path.expanduser(this_output_file_path), 'wt')
+        tsv_writer = csv.writer(f, delimiter='\t')
+        for shortened_keywords, keyword_list in shortened_keywords_list[index].items():
+            if len(keyword_list) > 1:
+                clustered_keywords += len(keyword_list)        
+                keyword_list.insert(0, len(keyword_list))
+                keyword_list.insert(0, shortened_keywords)
+                tsv_writer.writerow(keyword_list)  
+        f.close()
         print(clustered_keywords, "of", total_keyword_counts ,"keywords are clustered")    
         
 
