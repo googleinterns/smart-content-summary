@@ -44,21 +44,22 @@ def combine_two_tsv_files(original_file_path, append_file_path, number_of_new_li
     if number_of_new_lines > len(new_lines):
         raise ValueError("The target ratio is too big given the number of synthetic data.")
     
+   # Reshuffle the dataset after mixing in new sample.
     random.shuffle(new_lines)
     shuffled_index = list(range(len(original_lines) + number_of_new_lines))
     random.shuffle(shuffled_index)
     
     # Grammar classifier only needs one input while meaning classifier needs two
-    number_of_inputs = len(original_lines[0].strip().split("\t")) - 1
+    number_of_inputs = len(original_lines[0].rstrip().split("\t")) - 1
     
     with open(os.path.expanduser(output_file_path), 'wt') as out_file:
         tsv_writer = csv.writer(out_file, delimiter='\t')        
         for index in shuffled_index:
             if index >= len(original_lines):
-                new_line = new_lines.pop().strip().split("\t")[- number_of_inputs:]
+                new_line = new_lines.pop().rstrip().split("\t")[- number_of_inputs:]
                 new_line.append("0")
             else:
-                new_line = original_lines[index].strip().split("\t")           
+                new_line = original_lines[index].rstrip().split("\t")           
             tsv_writer.writerow(new_line)
     print("----- Data file saved to", output_file_path, "-----")
             
