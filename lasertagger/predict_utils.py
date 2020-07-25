@@ -48,19 +48,35 @@ class LaserTaggerPredictor(object):
 
   def predict(self, sources):
     """Returns realized prediction for given sources."""
-    example = self._example_builder.build_bert_example(sources)
-    if example is None:
-      raise ValueError("Example couldn't be built.")
-
     # Predict tag IDs.
     keys = ['input_ids', 'input_mask', 'segment_ids']
-    out = self._predictor({key: [example.features[key]] for key in keys})
-    predicted_ids = out['pred'][0].tolist()
-    # Realize output.
-    example.features['labels'] = predicted_ids
-    # Mask out the begin and the end token.
-    example.features['labels_mask'] = [0] + [1] * (len(predicted_ids) - 2) + [0]
-    labels = [
-        self._id_2_tag[label_id] for label_id in example.get_token_labels()
-    ]
-    return example.editing_task.realize_output(labels)
+    inputs = []
+    
+    examples = []
+    example = self._example_builder.build_bert_example(sources[0])
+    if example is None:
+          raise ValueError("Example couldn't be built.")
+    inputs = {key: [example.features[key]] for key in keys}
+    examples.append(example)
+    
+    for source in sources[1:]:
+        example = self._example_builder.build_bert_example(source)
+        examples.append(example)
+        for key in keys:
+            inputs[key].append(example.features[key])
+
+    outputs = self._predictor(inputs)['pred']
+    
+    predictions = []
+    for i, output in enumerate(outputs):
+        predicted_ids = output.tolist()
+        # Realize output.
+        examples[i].features['labels'] = predicted_ids
+        examples[i].features['labels_mask'] = \
+          [0] + [1] * (len(predicted_ids) - 2) + [0]
+        labels = [
+        self._id_2_tag[label_id] for label_id in examples[i].get_token_labels()
+        ]
+        predictions.append(examples[i].editing_task.realize_output(labels))
+        
+    return predictions

@@ -65,6 +65,7 @@ flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
                    'but the number of tags is smaller than the one for POS embeddings.')
 flags.DEFINE_bool('enable_masking', False, 'Whether to set digits and symbols'
                  'to generic type.')
+flags.DEFINE_integer('batch_size', 1, 'Batch size of prediction.')
 
 def main(argv):
   if len(argv) > 1:
@@ -77,6 +78,14 @@ def main(argv):
   flags.mark_flag_as_required('saved_model')
   flags.mark_flag_as_required('embedding_type')
 
+  if FLAGS.batch_size < 0:
+    raise ValueError("batch_size needs to be >= 1.")
+    
+  if FLAGS.batch_size == 1:
+    logging.info(f'The prediction batch size is 1. Recommend a bigger batch size.')
+  else:
+    logging.info(f'The prediction batch size is {FLAGS.batch_size}.')
+    
   label_map = utils.read_label_map(FLAGS.label_map_file)
   converter = tagging_converter.TaggingConverter(
       tagging_converter.get_phrase_vocabulary_from_label_map(label_map),
@@ -91,16 +100,37 @@ def main(argv):
       label_map)
 
   num_predicted = 0
+    
+  input_generator = utils.yield_sources_and_targets(FLAGS.input_file, FLAGS.input_format)
+  all_processed = False
+  num_predicted = 0
+  
+  logging.info("----- Start prediction -----")
   with tf.gfile.Open(FLAGS.output_file, 'w') as writer:
-    for i, (sources, target) in enumerate(utils.yield_sources_and_targets(
-        FLAGS.input_file, FLAGS.input_format)):
-      logging.log_every_n(
-          logging.INFO,
-          f'{i} examples processed, {num_predicted} converted to tf.Example.',
-          100)
-      prediction = predictor.predict(sources)
-      writer.write(f'{" ".join(sources)}\t{prediction}\t{target}\n')
-      num_predicted += 1
+    while not all_processed:
+        batch_sources = []
+        batch_targets = []
+        for i in range(FLAGS.batch_size):
+            try:
+                source, target = next(input_generator)
+                batch_sources.append(source)
+                batch_targets.append(target)
+            except StopIteration:
+                all_processed = True
+        
+        if len(batch_targets) == 0:
+            break
+            
+        predictions = predictor.predict(batch_sources)
+        num_predicted += len(predictions)
+        logging.log_every_n(
+            logging.INFO,
+            f'{num_predicted} predictions made.',
+            max(1, int(100/FLAGS.batch_size)))
+        for i, prediction in enumerate(predictions):
+            writer.write(
+                f'{" ".join(batch_sources[i])}\t{prediction}\t{batch_targets[i]}\n')
+    
   logging.info(f'{num_predicted} predictions saved to:\n{FLAGS.output_file}')
 
 

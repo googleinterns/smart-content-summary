@@ -164,7 +164,8 @@ def main(args):
                          "--saved_model=./" + model + "/export_model",
                          "--vocab_file=" + os.path.expanduser(args.abs_path_to_bert) + "/vocab.txt",
                          "--output_file=" + "./" + TEMP_FOLDER_NAME + "/output_" + model + ".tsv", 
-                         "--embedding_type=" + args.embedding_type]
+                         "--embedding_type=" + args.embedding_type,
+                         "--batch_size=" + str(args.batch_size )]
         if args.masking:
             prediction_command.append("--enable_masking=true")
         subprocess.call(prediction_command,
@@ -261,11 +262,16 @@ if __name__ == "__main__":
                             absolute path to the folder where the lasertagger scripts are located
       abs_path_to_bert      absolute path to the folder where the pretrained BERT is located
       models                the name of trained models
+      embedding_type        type of embedding. Must be one of [Normal, POS, Sentence]. 
+                            Normal: segment id is all zero. POS: part of speech tagging. 
+                            Sentence: sentence tagging.
+                            
     optional arguments:
       -h, --help            show help message and exit
-      -score                if added, compute scores for the predictions
-      -grammar              if added, automatically apply grammar check on predictions
+      -score                If added, compute scores for the predictions
+      -grammar              If added, automatically apply grammar check on predictions
       -masking              If added, numbers and symbols will be masked.
+      -batch_size           The batch size of prediction. Default=1.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("path_to_input_file", help="the directory of the model output")
@@ -281,6 +287,12 @@ if __name__ == "__main__":
     parser.add_argument("embedding_type", help="type of embedding. Must be one of [Normal, POS, POS_concise, Sentence]. "
                         "Normal: segment id is all zero. POS: part of speech tagging. "
                         "POS_concise: POS tagging with a smaller set of tags. Sentence: sentence tagging.")
+    
+    parser.add_argument("-score", action="store_true", help="If added, compute scores for the predictions")
+    parser.add_argument("-grammar", action="store_true",
+                        help="If added, automatically apply grammar check on predictions")
+    parser.add_argument("-batch_size", type=int, help="The batch size of prediction. Default=1.")
+    parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
     
     arguments = parser.parse_args()
     if arguments.embedding_type not in ["Normal", "POS", "POS_concise", "Sentence"]:
