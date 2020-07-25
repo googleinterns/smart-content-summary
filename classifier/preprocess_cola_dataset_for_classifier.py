@@ -11,16 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+""" Preprocess the CoLA (The Corpus of Linguistic Acceptability) grammar 
+dataset classification task."""
+
 import argparse
 import csv
 import os
 import random
-
 import numpy as np
-
 import preprocess_utils
-""" Preprocess the CoLA (The Corpus of Linguistic Acceptability) grammar 
-dataset classification task."""
 
 PREPROCESSED_FILE_PATH = "~/classifier_preprocessed_cola_dataset.tsv"
 MIXED_FILE_PATH = "~/classifier_mixed_training_set_grammar.tsv"
@@ -38,14 +38,15 @@ def main(args):
     sentences_positive = []
     sentences_negative = []
     
-    with open(data_file) as tsv_file:
-        read_tsv = csv.reader(tsv_file, delimiter="\t")
-        for line in read_tsv:
-            if int(line[1]) == 1:
-                sentences_positive.append(line[3])
-            else:
-                sentences_negative.append(line[3])
-
+    tsv_file = open(data_file)
+    read_tsv = csv.reader(tsv_file, delimiter="\t")
+    for line in read_tsv:
+        if int(line[1]) == 1:
+            sentences_positive.append(line[3])
+        else:
+            sentences_negative.append(line[3])
+    tsv_file.close()
+    
     cleaned_sentences_positive = preprocess_utils.text_strip(sentences_positive)
     cleaned_sentences_negative = preprocess_utils.text_strip(sentences_negative)
 
