@@ -38,8 +38,9 @@ python preprocess_MS_dataset_for_classifier.py $INPUT_DIR $NUM_TUNE $NUM_VALID
 Six tsv files will be saved at your home directory. Three correspond to grammar scoring,
 and three are for meaning preservation scoring. 
 
-Note that only 14% of the Microsoft dataset are unacceptable grammar or meaning samples (negative samples). To
-improve the model performance, it is helpful to add more negative samples, either from other dataset or from synthetic data.
+Note that only 14% of the Microsoft dataset are samples with unacceptable grammar or 
+meaningless samples (negative samples). To improve the model performance, it is helpful 
+to add more negative samples, either from other dataset or from synthetic data. 
 For the grammar classifier, [the Corpus of Linguistic Acceptability(CoLA)](https://nyu-mll.github.io/CoLA/) dataset
 can be used. Run the following command to preprocess this dataset and add all its negative samples to the training set for 
 the grammar classifier.
@@ -50,7 +51,7 @@ A tsv file named classifier_mixed_training_set_grammar.tsv will be saved, which 
 with the negative samples from the CoLA dataset. 
 
 To mix the training datasets with other synthetic negative samples to achieve a desirable 
-negative sample ratio, you can use 
+negative sample ratio, you can run 
 ```
 python mixing_in_negative_samples.py path/to/synthetic/negative/sample/file \
                                      path/to/training/data/file \
@@ -127,6 +128,7 @@ Compute the accuracy, precision, and recall score of the predictions:
 ```
 python score_main.py path/to/output/prediction/file
 ```
+
 Example output:
 ```
 Accuracy: 0.8902
