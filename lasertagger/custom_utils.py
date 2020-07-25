@@ -20,17 +20,27 @@ import nltk
 import re
 
 
-def convert_to_pos(tokens: List[Text]) -> List[int]:
+def convert_to_pos(tokens: List[Text], pos_type: Text) -> List[int]:
     """Convert a list of tokens to a list of int representing Part of Speech (POS) tag.
     Args:
-        tokens: a list of tokens to be converted.
+        tokens: a list of tokens to be converted
+        pos_type: type of pos tagging, POS or POS_concise
     Returns:
         tokens_pos: a list of int representing the POS.
     """
-    pos_tags = ["CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS",
-                "MD", "NN", "NNS", "NNP", "NNPS", "PDT", "POS", "PRP", "PRP$",
-                "RB", "RBR", "RBS", "RP", "TO", "UH", "VB", "VBD", "VBG",
-                "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB", '.', 'X']
+    if pos_type == "POS":
+        pos_tags = ["CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS",
+                    "MD", "NN", "NNS", "NNP", "NNPS", "PDT", "POS", "PRP", "PRP$",
+                    "RB", "RBR", "RBS", "RP", "TO", "UH", "VB", "VBD", "VBG",
+                    "VBN", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB", '.', 'X']
+        tokens_pos_tags = nltk.pos_tag(tokens)
+    elif pos_type == "POS_concise":
+        pos_tags = ["VERB", "NOUN", "PRON", "ADJ", "ADV", "ADP", "CONJ", "DET", 
+                    "NUM", "PRT", "X", "."]
+        tokens_pos_tags = nltk.pos_tag(tokens, tagset='universal')
+    else:
+        raise ValueError("pos_type must be either POS or POS_concise.")
+        
     pos_dict = {}
     pos_tag = 3  # saving 0, 1, 2 for other taggings in BERT
     for tag in pos_tags:
@@ -38,7 +48,6 @@ def convert_to_pos(tokens: List[Text]) -> List[int]:
         pos_tag += 1
     oov_tag = pos_tag
 
-    tokens_pos_tags = nltk.pos_tag(tokens)
     tokens_pos = []
     for row in tokens_pos_tags:
         _, pos = row
@@ -77,8 +86,9 @@ def __replace_unused_vocab(vocab_list, new_vocab):
     """    
     if new_vocab not in vocab_list:
         pattern = re.compile('\[UNUSED_.*\]\n')
+        patter_lowercase = re.compile('\[unused.*\]\n')
         for i, vocab in enumerate(vocab_list):
-            if re.match(pattern, vocab):
+            if re.match(pattern, vocab) or re.match(patter_lowercase, vocab):
                 vocab_list[i] = new_vocab
                 return vocab_list
         raise IndexError('There is no unused vocab in the list.')

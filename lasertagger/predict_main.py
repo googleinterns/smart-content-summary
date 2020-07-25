@@ -60,7 +60,9 @@ flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
                     'set to Normal, segment id is all zero. If set to Sentence, '
                     'segment id marks sentences, i.e. 0 for first sentence, 1 for '
                    'second second, 0 for third sentence, etc. If set to POS, '
-                   'segment id is the Part of Speech tag of each token.')
+                   'segment id is the Part of Speech tag of each token. '
+                   'If set to POS_concise, segment is is the Part of Speech tags, '
+                   'but the number of tags is smaller than the one for POS embeddings.')
 flags.DEFINE_bool('enable_masking', False, 'Whether to set digits and symbols'
                  'to generic type.')
 
