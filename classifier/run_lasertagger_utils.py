@@ -26,7 +26,7 @@ from bert import optimization
 import transformer_decoder
 import tensorflow as tf
 from official_transformer import model_params
-import numpy as np
+
 
 class LaserTaggerConfig(modeling.BertConfig):
   """Model configuration for LaserTagger."""
@@ -71,8 +71,7 @@ class ModelFnBuilder(object):
                init_checkpoint,
                learning_rate, num_train_steps,
                num_warmup_steps, use_tpu,
-               use_one_hot_embeddings, max_seq_length,        
-               verb_deletion_loss_weight, verb_tags, delete_tags):
+               use_one_hot_embeddings, max_seq_length):
     """Initializes an instance of a LaserTagger model.
 
     Args:
@@ -86,11 +85,6 @@ class ModelFnBuilder(object):
       use_one_hot_embeddings: Whether to use one-hot embeddings for word
         embeddings.
       max_seq_length: Maximum sequence length.
-      verb_deletion_loss_weight: the weight of the loss of deleting verb
-      verb_tags: a list of pos tag (integers) corresponding to verb 
-      delete_tags: a list of integers with length of the vocab number. The 
-        integer is 0 if the corresponding vocab is not "DELETE" and is 1 if
-        the corresponding vocab is "DELETE".
     """
     self._config = config
     self._num_tags = num_tags
@@ -101,10 +95,6 @@ class ModelFnBuilder(object):
     self._use_tpu = use_tpu
     self._use_one_hot_embeddings = use_one_hot_embeddings
     self._max_seq_length = max_seq_length
-    self._verb_deletion_loss_weight = verb_deletion_loss_weight
-    self._verb_tags = verb_tags
-    self._delete_tags = delete_tags
-    
 
   def _create_model(self, mode, input_ids, input_mask, segment_ids, labels,
                     labels_mask):
@@ -145,43 +135,6 @@ class ModelFnBuilder(object):
       if mode != tf.estimator.ModeKeys.PREDICT:
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=labels, logits=logits)
-
-        if self._verb_tags is not None and self._verb_deletion_loss_weight != 0:
-            logits_tensor_shape_as_list = logits.get_shape().as_list()
-            batch_size = logits_tensor_shape_as_list[0]
-            token_length = logits_tensor_shape_as_list[1]
-            number_of_tags = logits_tensor_shape_as_list[2]
-        
-            verb_mask = tf.constant(0.0, dtype="float32", shape=segment_ids.get_shape())
-            for verb_tag in self._verb_tags:
-                verb_mask = tf.math.add(
-                    tf.cast(tf.math.equal(tf.constant(verb_tag, dtype="int32"), segment_ids), tf.float32), 
-                    verb_mask)
-            
-            if self._config.use_t2t_decoder:                
-                delete_tags = np.insert(self._delete_tags, 0, [0, 0], axis=0)
-            else:
-                delete_tags = self._delete_tags
-            delete_tags = np.repeat(delete_tags[np.newaxis, :], token_length, axis=0)
-            delete_tags = np.repeat(delete_tags[np.newaxis,:, :], batch_size, axis=0)
-            delete_tags_tensor = tf.constant(delete_tags, dtype="float32")
-            
-            delete_probability = tf.math.divide(
-                tf.reduce_sum(tf.math.multiply(delete_tags_tensor, logits), 2), 
-                tf.reduce_sum(logits, 2))
-            
-            delete_loss = tf.math.scalar_mul(
-                tf.constant(self._verb_deletion_loss_weight, dtype="float32"), 
-                tf.math.multiply(delete_probability, verb_mask))
-            
-            # new loss = loss * (1 + delete_loss)
-            loss = tf.math.multiply(
-                loss, 
-                tf.math.add(
-                    tf.constant(1.0, dtype="float32", shape=delete_loss.get_shape()), 
-                    delete_loss)
-            )
-        
         per_example_loss = tf.truediv(
             tf.reduce_sum(loss, axis=1),
             tf.dtypes.cast(tf.reduce_sum(labels_mask, axis=1), tf.float32))
@@ -197,8 +150,7 @@ class ModelFnBuilder(object):
           pred = tf.cast(tf.argmax(logits, axis=-1), tf.int32)
 
       return (loss, per_example_loss, pred)
-    
-    
+
   def build(self):
     """Returns `model_fn` closure for TPUEstimator."""
 
