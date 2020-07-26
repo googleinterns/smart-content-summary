@@ -38,14 +38,14 @@ def main(args):
     sentences_positive = []
     sentences_negative = []
     
-    tsv_file = open(data_file)
-    read_tsv = csv.reader(tsv_file, delimiter="\t")
-    for line in read_tsv:
-        if int(line[1]) == 1:
-            sentences_positive.append(line[3])
-        else:
-            sentences_negative.append(line[3])
-    tsv_file.close()
+    with open(data_file) as tsv_file:
+        read_tsv = csv.reader(tsv_file, delimiter="\t")
+        for line in read_tsv:
+            if int(line[1]) == 1:
+                sentences_positive.append(line[3])
+            else:
+                sentences_negative.append(line[3])
+
     
     cleaned_sentences_positive = preprocess_utils.text_strip(sentences_positive)
     cleaned_sentences_negative = preprocess_utils.text_strip(sentences_negative)
