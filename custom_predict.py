@@ -279,23 +279,17 @@ if __name__ == "__main__":
                         help="absolute path to the folder where the lasertagger scripts are located")
     parser.add_argument("abs_path_to_bert", help="absolute path to the folder where the pretrained BERT is located")
     parser.add_argument('models', help="the name of trained models", nargs='+')
-
-    parser.add_argument("-score", action="store_true", help="if added, compute scores for the predictions")
-    parser.add_argument("-grammar", action="store_true",
-                        help="if added, automatically apply grammar check on predictions")
-    parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
-    parser.add_argument("embedding_type", help="type of embedding. Must be one of [Normal, POS, POS_concise, Sentence]. "
-                        "Normal: segment id is all zero. POS: part of speech tagging. "
-                        "POS_concise: POS tagging with a smaller set of tags. Sentence: sentence tagging.")
+    parser.add_argument("embedding_type", help="type of embedding. Must be one of [Normal, POS, Sentence]. "
+                        "Normal: segment id is all zero. POS: part of speech tagging. Sentence: sentence tagging.")
     
     parser.add_argument("-score", action="store_true", help="If added, compute scores for the predictions")
     parser.add_argument("-grammar", action="store_true",
                         help="If added, automatically apply grammar check on predictions")
-    parser.add_argument("-batch_size", type=int, help="The batch size of prediction. Default=1.")
+    parser.add_argument("-batch_size", default=1, type=int, help="The batch size of prediction. Default=1.")
     parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
     
     arguments = parser.parse_args()
-    if arguments.embedding_type not in ["Normal", "POS", "POS_concise", "Sentence"]:
+    if arguments.embedding_type not in ["Normal", "POS", "Sentence", "POS_concise"]:
         raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence")
 
     main(arguments)
