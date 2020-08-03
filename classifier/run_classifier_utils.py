@@ -31,47 +31,23 @@ from official_transformer import model_params
 class LaserTaggerConfig(modeling.BertConfig):
   """Model configuration for LaserTagger."""
 
-  def __init__(self,
-               use_t2t_decoder=True,
-               decoder_num_hidden_layers=1,
-               decoder_hidden_size=768,
-               decoder_num_attention_heads=4,
-               decoder_filter_size=3072,
-               use_full_attention=False,
-               **kwargs):
+  def __init__(self, **kwargs):
     """Initializes an instance of LaserTagger configuration.
 
-    This initializer expects both the BERT specific arguments and the
-    Transformer decoder arguments listed below.
-
-    Args:
-      use_t2t_decoder: Whether to use the Transformer decoder (i.e.
-        LaserTagger_AR). If False, the remaining args do not affect anything and
-        can be set to default values.
-      decoder_num_hidden_layers: Number of hidden decoder layers.
-      decoder_hidden_size: Decoder hidden size.
-      decoder_num_attention_heads: Number of decoder attention heads.
-      decoder_filter_size: Decoder filter size.
-      use_full_attention: Whether to use full encoder-decoder attention.
-      **kwargs: The arguments that the modeling.BertConfig initializer expects.
+    This initializer expects BERT specific arguments.
     """
     super(LaserTaggerConfig, self).__init__(**kwargs)
-    self.use_t2t_decoder = use_t2t_decoder
-    self.decoder_num_hidden_layers = decoder_num_hidden_layers
-    self.decoder_hidden_size = decoder_hidden_size
-    self.decoder_num_attention_heads = decoder_num_attention_heads
-    self.decoder_filter_size = decoder_filter_size
-    self.use_full_attention = use_full_attention
 
 
 class ModelFnBuilder(object):
   """Class for building `model_fn` closure for TPUEstimator."""
 
-  def __init__(self, config, num_tags,
+  def __init__(self, config, num_categories,
                init_checkpoint,
                learning_rate, num_train_steps,
                num_warmup_steps, use_tpu,
-               use_one_hot_embeddings, max_seq_length):
+               use_one_hot_embeddings, max_seq_length,
+               classifier_type):
     """Initializes an instance of a LaserTagger model.
 
     Args:
@@ -85,9 +61,10 @@ class ModelFnBuilder(object):
       use_one_hot_embeddings: Whether to use one-hot embeddings for word
         embeddings.
       max_seq_length: Maximum sequence length.
+      classifier_type: Either Grammar or Meaning.
     """
     self._config = config
-    self._num_tags = num_tags
+    self._num_categories = num_categories
     self._init_checkpoint = init_checkpoint
     self._learning_rate = learning_rate
     self._num_train_steps = num_train_steps
@@ -95,58 +72,66 @@ class ModelFnBuilder(object):
     self._use_tpu = use_tpu
     self._use_one_hot_embeddings = use_one_hot_embeddings
     self._max_seq_length = max_seq_length
+    self._classifier_type = classifier_type
 
-  def _create_model(self, mode, input_ids, input_mask, segment_ids, labels,
-                    labels_mask):
+  def _create_model(self, mode, input_ids_source, input_mask_source, 
+                    segment_ids_source, input_ids_summary,
+                    input_mask_summary, segment_ids_summary, labels):
     """Creates a LaserTagger model."""
     is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-    model = modeling.BertModel(
+    model_source = modeling.BertModel(
         config=self._config,
         is_training=is_training,
-        input_ids=input_ids,
-        input_mask=input_mask,
-        token_type_ids=segment_ids,
+        input_ids=input_ids_source,
+        input_mask=input_mask_source,
+        token_type_ids=segment_ids_source,
         use_one_hot_embeddings=self._use_one_hot_embeddings)
+    final_hidden_source = model_source.get_sequence_output()
+    
+    if self._classifier_type == "Meaning":
+        model_summary = modeling.BertModel(
+            config=self._config,
+            is_training=is_training,
+            input_ids=input_ids_summary,
+            input_mask=input_mask_summary,
+            token_type_ids=segment_ids_summary,
+            use_one_hot_embeddings=self._use_one_hot_embeddings)
+        final_hidden_summary = model_source.get_sequence_output()
 
-    final_hidden = model.get_sequence_output()
-
-    if self._config.use_t2t_decoder:
-      # Size of the output vocabulary which contains the tags + begin and end
-      # tokens used by the Transformer decoder.
-      output_vocab_size = self._num_tags + 2
-      params = _get_decoder_params(self._config, self._use_tpu,
-                                   self._max_seq_length, output_vocab_size)
-      decoder = transformer_decoder.TransformerDecoder(params, is_training)
-      logits = decoder(input_mask, final_hidden, labels)
+        final_hidden = tf.concat([final_hidden_source, final_hidden_summary],
+                                axis=1)
     else:
-      if is_training:
-        # I.e., 0.1 dropout
+        final_hidden = final_hidden_source
+
+    if is_training:
+    # I.e., 0.1 dropout
         final_hidden = tf.nn.dropout(final_hidden, keep_prob=0.9)
 
-      logits = tf.layers.dense(
-          final_hidden,
-          self._num_tags,
-          kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
-          name="output_projection")
+    layer1_output = tf.layers.dense(
+        final_hidden,
+        1,
+        kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+        name="layer1")
+    
+    if self._classifier_type == "Meaning":
+        flattened_layer1_output = tf.reshape(layer1_output, [-1, self._max_seq_length*2])
+    else:
+        flattened_layer1_output = tf.reshape(layer1_output, [-1, self._max_seq_length])
+    logits = tf.expand_dims(tf.layers.dense(
+        flattened_layer1_output, 
+        self._num_categories,
+        kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
+        name="layer2"), 1)
 
     with tf.variable_scope("loss"):
       loss = None
       per_example_loss = None
       if mode != tf.estimator.ModeKeys.PREDICT:
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        per_example_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
             labels=labels, logits=logits)
-        per_example_loss = tf.truediv(
-            tf.reduce_sum(loss, axis=1),
-            tf.dtypes.cast(tf.reduce_sum(labels_mask, axis=1), tf.float32))
         loss = tf.reduce_mean(per_example_loss)
         pred = tf.cast(tf.argmax(logits, axis=-1), tf.int32)
       else:
-        if self._config.use_t2t_decoder:
-          pred = logits["outputs"]
-          # Transformer decoder reserves the first two IDs to the begin and the
-          # end token so we shift the IDs back.
-          pred -= 2
-        else:
           pred = tf.cast(tf.argmax(logits, axis=-1), tf.int32)
 
       return (loss, per_example_loss, pred)
@@ -161,22 +146,32 @@ class ModelFnBuilder(object):
       for name in sorted(features.keys()):
         tf.logging.info("  name = %s, shape = %s", name, features[name].shape)
 
-      input_ids = features["input_ids"]
-      input_mask = features["input_mask"]
-      segment_ids = features["segment_ids"]
+      if self._classifier_type == "Meaning":
+        input_ids_source = features["input_ids_source"]
+        input_mask_source = features["input_mask_source"]
+        segment_ids_source = features["segment_ids_source"]
 
+        input_ids_summary = features["input_ids_summary"]
+        input_mask_summary = features["input_mask_summary"]
+        segment_ids_summary = features["segment_ids_summary"]
+      elif self._classifier_type == "Grammar":
+        input_ids_source = features["input_ids"]
+        input_mask_source = features["input_mask"]
+        segment_ids_source = features["segment_ids"]
+
+        input_ids_summary = None
+        input_mask_summary = None
+        segment_ids_summary = None
+      else:
+        raise ValueError("Classification type must be Grammar or Meaning")
+        
       labels = None
-      labels_mask = None
       if mode != tf.estimator.ModeKeys.PREDICT:
-        if self._config.use_t2t_decoder:
-          # Account for the begin and end tokens used by Transformer.
-          labels = features["labels"] + 2
-        else:
-          labels = features["labels"]
-        labels_mask = tf.cast(features["labels_mask"], tf.float32)
+        labels = features["labels"]
 
       (total_loss, per_example_loss, predictions) = self._create_model(
-          mode, input_ids, input_mask, segment_ids, labels, labels_mask)
+          mode, input_ids_source, input_mask_source, segment_ids_source, 
+          input_ids_summary, input_mask_summary, segment_ids_summary, labels)
 
       tvars = tf.trainable_variables()
       initialized_variable_names = {}
@@ -246,32 +241,4 @@ class ModelFnBuilder(object):
       return output_spec
 
     return model_fn
-
-
-def _get_decoder_params(config, use_tpu,
-                        max_seq_length,
-                        output_vocab_size):
-  """Returns hyperparameters for TransformerDecoder.
-
-  Args:
-    config: LaserTagger model configuration.
-    use_tpu: Whether to train on TPUs.
-    max_seq_length: Maximum sequence length.
-    output_vocab_size: Size of the output vocabulary.
-
-  Returns:
-    Hyperparameter dictionary.
-  """
-  params = model_params.BASE_PARAMS
-  params.update(
-      num_hidden_layers=config.decoder_num_hidden_layers,
-      hidden_size=config.decoder_hidden_size,
-      num_heads=config.decoder_num_attention_heads,
-      filter_size=config.decoder_filter_size,
-      vocab_size=output_vocab_size,
-      use_tpu=use_tpu,
-      max_length=max_seq_length,
-      # This parameter should not be changed since we want the number of decoded
-      # tags to equal the number of source tokens.
-      extra_decode_length=0)
-  return params
+  

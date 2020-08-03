@@ -24,43 +24,64 @@ import collections
 
 from bert import tokenization
 import tagging
-import tagging_converter
 import tensorflow as tf
 from typing import Mapping, MutableSequence, Optional, Sequence, Text
 
 
-class BertExample(object):
+def to_tf_example_helper(bert_example):
+    """Returns this object as a tf.Example."""
+
+    def int_feature(values):
+      return tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
+
+    tf_features = collections.OrderedDict([
+        (key, int_feature(val)) for key, val in bert_example.features.items()
+    ])
+    return tf.train.Example(features=tf.train.Features(feature=tf_features))
+
+
+class BertExampleMeaning(object):
   """Class for training and inference examples for BERT.
 
   Attributes:
-    editing_task: The EditingTask from which this example was created. Needed
-      when realizing labels predicted for this example.
     features: Feature dictionary.
   """
 
-  def __init__(self, input_ids,
-               input_mask,
-               segment_ids, labels,
-               labels_mask,
-               token_start_indices,
-               task, default_label):
-    input_len = len(input_ids)
-    if not (input_len == len(input_mask) and input_len == len(segment_ids) and
-            input_len == len(labels) and input_len == len(labels_mask)):
+  def __init__(self, input_ids_source,
+               input_mask_source,
+               segment_ids_source, 
+               token_start_indices_source,
+               input_ids_summary,
+               input_mask_summary,
+               segment_ids_summary, 
+               token_start_indices_summary,
+               labels):
+        
+    source_len = len(input_ids_source)
+    if not (source_len == len(input_mask_source) and 
+            source_len == len(segment_ids_source)):
       raise ValueError(
           'All feature lists should have the same length ({})'.format(
-              input_len))
+              source_len))
+    
+    summary_len = len(input_ids_summary)
+    if not (summary_len == len(input_mask_summary) and 
+            summary_len == len(segment_ids_summary)):
+      raise ValueError(
+          'All feature lists should have the same length ({})'.format(
+              source_len))
 
     self.features = collections.OrderedDict([
-        ('input_ids', input_ids),
-        ('input_mask', input_mask),
-        ('segment_ids', segment_ids),
-        ('labels', labels),
-        ('labels_mask', labels_mask),
+        ('input_ids_source', input_ids_source),
+        ('input_mask_source', input_mask_source),
+        ('segment_ids_source', segment_ids_source),
+        ('input_ids_summary', input_ids_summary),
+        ('input_mask_summary', input_mask_summary),
+        ('segment_ids_summary', segment_ids_summary),
+        ('labels', labels)
     ])
-    self._token_start_indices = token_start_indices
-    self.editing_task = task
-    self._default_label = default_label
+    self._token_start_indices_source = token_start_indices_source
+    self._token_start_indices_summary = token_start_indices_summary
 
   def pad_to_max_length(self, max_seq_length, pad_token_id):
     """Pad the feature vectors so that they all have max_seq_length.
@@ -70,126 +91,168 @@ class BertExample(object):
       pad_token_id: input_ids feature is padded with this ID, other features
         with ID 0.
     """
-    pad_len = max_seq_length - len(self.features['input_ids'])
+    pad_len_source = max_seq_length - len(self.features['input_ids_source'])
+    for key in ['input_ids_source', 'input_mask_source', 'segment_ids_source']:
+      pad_id = pad_token_id if key == 'input_ids_source' else 0
+      self.features[key].extend([pad_id] * pad_len_source)
+    
+    pad_len_summary = max_seq_length - len(self.features['input_ids_summary'])
+    for key in ['input_ids_summary', 'input_mask_summary', 'segment_ids_summary']:
+      pad_id = pad_token_id if key == 'input_ids_summary' else 0
+      self.features[key].extend([pad_id] * pad_len_summary)
+    
     for key in self.features:
-      pad_id = pad_token_id if key == 'input_ids' else 0
-      self.features[key].extend([pad_id] * pad_len)
-      if len(self.features[key]) != max_seq_length:
+      if key != 'labels' and len(self.features[key]) != max_seq_length:
         raise ValueError('{} has length {} (should be {}).'.format(
             key, len(self.features[key]), max_seq_length))
 
   def to_tf_example(self):
     """Returns this object as a tf.Example."""
+    return to_tf_example_helper(self)
 
-    def int_feature(values):
-      return tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
 
-    tf_features = collections.OrderedDict([
-        (key, int_feature(val)) for key, val in self.features.items()
+class BertExampleGrammar(object):
+  """Class for training and inference examples for BERT.
+
+  Attributes:
+    features: Feature dictionary.
+  """
+
+  def __init__(self, input_ids,
+               input_mask,
+               segment_ids, 
+               token_start_indices,
+               labels):
+        
+    source_len = len(input_ids)
+    if not (source_len == len(input_mask) and 
+            source_len == len(segment_ids)):
+      raise ValueError(
+          'All feature lists should have the same length ({})'.format(
+              source_len))
+
+    self.features = collections.OrderedDict([
+        ('input_ids', input_ids),
+        ('input_mask', input_mask),
+        ('segment_ids', segment_ids),
+        ('labels', labels)
     ])
-    return tf.train.Example(features=tf.train.Features(feature=tf_features))
+    self._token_start_indices = token_start_indices
+    
+  def pad_to_max_length(self, max_seq_length, pad_token_id):
+    """Pad the feature vectors so that they all have max_seq_length.
 
-  def get_token_labels(self):
-    """Returns labels/tags for the original tokens, not for wordpieces."""
-    labels = []
-    for idx in self._token_start_indices:
-      # For unmasked and untruncated tokens, use the label in the features, and
-      # for the truncated tokens, use the default label.
-      if (idx < len(self.features['labels']) and
-          self.features['labels_mask'][idx]):
-        labels.append(self.features['labels'][idx])
-      else:
-        labels.append(self._default_label)
-    return labels
+    Args:
+      max_seq_length: The length that features will have after padding.
+      pad_token_id: input_ids feature is padded with this ID, other features
+        with ID 0.
+    """
+    pad_len = max_seq_length - len(self.features['input_ids'])
+    for key in ['input_ids', 'input_mask', 'segment_ids']:
+      pad_id = pad_token_id if key == 'input_ids' else 0
+      self.features[key].extend([pad_id] * pad_len)
+      if len(self.features[key]) != max_seq_length:
+        raise ValueError('{} has length {} (should be {}).'.format(
+            key, len(self.features[key]), max_seq_length))
+        
+  def to_tf_example(self):
+    """Returns this object as a tf.Example."""
+    return to_tf_example_helper(self)
 
 
 class BertExampleBuilder(object):
   """Builder class for BertExample objects."""
 
-  def __init__(self, label_map, vocab_file,
-               max_seq_length, do_lower_case,
-               converter):
+  def __init__(self, vocab_file,
+               max_seq_length, do_lower_case):
     """Initializes an instance of BertExampleBuilder.
 
     Args:
-      label_map: Mapping from tags to tag IDs.
       vocab_file: Path to BERT vocabulary file.
       max_seq_length: Maximum sequence length.
       do_lower_case: Whether to lower case the input text. Should be True for
         uncased models and False for cased models.
-      converter: Converter from text targets to tags.
     """
-    self._label_map = label_map
     self._tokenizer = tokenization.FullTokenizer(vocab_file,
                                                  do_lower_case=do_lower_case)
     self._max_seq_length = max_seq_length
-    self._converter = converter
     self._pad_id = self._get_pad_id()
-    self._keep_tag_id = self._label_map['KEEP']
 
-  def build_bert_example(
-      self,
-      sources,
-      target = None,
-      use_arbitrary_target_ids_for_infeasible_examples = False
-  ):
+  def build_bert_example_meaning(self, sources, summaries, labels):
     """Constructs a BERT Example.
 
     Args:
       sources: List of source texts.
-      target: Target text or None when building an example during inference.
-      use_arbitrary_target_ids_for_infeasible_examples: Whether to build an
-        example with arbitrary target ids even if the target can't be obtained
-        via tagging.
-
+      summaries: List of corresponding summary texts.
+      
     Returns:
-      BertExample, or None if the conversion from text to tags was infeasible
-      and use_arbitrary_target_ids_for_infeasible_examples == False.
+      BertExample
     """
-    # Compute target labels.
-    task = tagging.EditingTask(sources)
-    if target is not None:
-      tags = self._converter.compute_tags(task, target)
-      if not tags:
-        if use_arbitrary_target_ids_for_infeasible_examples:
-          # Create a tag sequence [KEEP, DELETE, KEEP, DELETE, ...] which is
-          # unlikely to be predicted by chance.
-          tags = [tagging.Tag('KEEP') if i % 2 == 0 else tagging.Tag('DELETE')
-                  for i, _ in enumerate(task.source_tokens)]
-        else:
-          return None
-    else:
-      # If target is not provided, we set all target labels to KEEP.
-      tags = [tagging.Tag('KEEP') for _ in task.source_tokens]
-    labels = [self._label_map[str(tag)] for tag in tags]
+    input_ids_source, input_mask_source, segment_ids_source, \
+    token_start_indices_source = self._get_embeddings(sources)
+    
+    input_ids_summary, input_mask_summary, segment_ids_summary, \
+    token_start_indices_summary = self._get_embeddings(summaries)
 
-    tokens, labels, token_start_indices = self._split_to_wordpieces(
-        task.source_tokens, labels)
-
-    tokens = self._truncate_list(tokens)
-    labels = self._truncate_list(labels)
-
-    input_tokens = ['[CLS]'] + tokens + ['[SEP]']
-    labels_mask = [0] + [1] * len(labels) + [0]
-    labels = [0] + labels + [0]
-
-    input_ids = self._tokenizer.convert_tokens_to_ids(input_tokens)
-    input_mask = [1] * len(input_ids)
-    segment_ids = [0] * len(input_ids)
-
-    example = BertExample(
-        input_ids=input_ids,
-        input_mask=input_mask,
-        segment_ids=segment_ids,
-        labels=labels,
-        labels_mask=labels_mask,
-        token_start_indices=token_start_indices,
-        task=task,
-        default_label=self._keep_tag_id)
+    example = BertExampleMeaning(
+        input_ids_source=input_ids_source,
+        input_mask_source=input_mask_source,
+        segment_ids_source=segment_ids_source,
+        token_start_indices_source=token_start_indices_source,
+        input_ids_summary=input_ids_summary,
+        input_mask_summary=input_mask_summary,
+        segment_ids_summary=segment_ids_summary,
+        token_start_indices_summary=token_start_indices_summary,
+        labels=[int(labels)]
+    )
     example.pad_to_max_length(self._max_seq_length, self._pad_id)
     return example
 
-  def _split_to_wordpieces(self, tokens, labels):
+  def build_bert_example_grammar(self, sources, labels):
+    """Constructs a BERT Example.
+
+    Args:
+      sources: List of source texts.
+      summaries: List of corresponding summary texts.
+      
+    Returns:
+      BertExample
+    """
+    input_ids, input_mask, segment_ids, token_start_indices = \
+      self._get_embeddings(sources)
+
+    example = BertExampleGrammar(
+        input_ids=input_ids,
+        input_mask=input_mask,
+        segment_ids=segment_ids,
+        token_start_indices=token_start_indices,
+        labels=[int(labels)]
+    )
+    example.pad_to_max_length(self._max_seq_length, self._pad_id)
+    return example
+
+  def _get_embeddings(self, text):
+    """Get BERT embeddings for input text.
+    
+    Args:
+      text: List of input texts.
+    
+    Returns:
+      4-tuple of input_ids, input_mask, segment_ids, and 
+      token_start_indices
+    """
+    tokens, token_start_indices = self._split_to_wordpieces(
+        tagging.EditingTask(text).source_tokens)
+    tokens = self._truncate_list(tokens)
+
+    input_tokens = ['[CLS]'] + tokens + ['[SEP]']
+    input_ids = self._tokenizer.convert_tokens_to_ids(input_tokens)
+    input_mask = [1] * len(input_ids)
+    segment_ids = [0] * len(input_ids)
+    
+    return input_ids, input_mask, segment_ids, token_start_indices
+        
+  def _split_to_wordpieces(self, tokens):
     """Splits tokens (and the labels accordingly) to WordPieces.
 
     Args:
@@ -201,7 +264,6 @@ class BertExampleBuilder(object):
       WordPieces that start a token.
     """
     bert_tokens = []  # Original tokens split into wordpieces.
-    bert_labels = []  # Label for each wordpiece.
     # Index of each wordpiece that starts a new token.
     token_start_indices = []
     for i, token in enumerate(tokens):
@@ -209,8 +271,7 @@ class BertExampleBuilder(object):
       token_start_indices.append(len(bert_tokens) + 1)
       pieces = self._tokenizer.tokenize(token)
       bert_tokens.extend(pieces)
-      bert_labels.extend([labels[i]] * len(pieces))
-    return bert_tokens, bert_labels, token_start_indices
+    return bert_tokens, token_start_indices
 
   def _truncate_list(self, x):
     """Returns truncated version of x according to the self._max_seq_length."""

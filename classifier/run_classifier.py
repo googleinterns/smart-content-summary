@@ -24,7 +24,7 @@ from __future__ import print_function
 from typing import Text
 from absl import flags
 
-import run_lasertagger_utils
+import run_classifier_utils
 import utils
 
 import tensorflow as tf
@@ -37,11 +37,6 @@ flags.DEFINE_string("training_file", None,
                     "Path to the TFRecord training file.")
 flags.DEFINE_string("eval_file", None, "Path to the the TFRecord dev file.")
 flags.DEFINE_string(
-    "label_map_file", None,
-    "Path to the label map file. Either a JSON file ending with '.json', that "
-    "maps each possible tag to an ID, or a text file that has one tag per "
-    "line.")
-flags.DEFINE_string(
     "model_config_file", None,
     "The config json file specifying the model architecture.")
 flags.DEFINE_string(
@@ -49,6 +44,10 @@ flags.DEFINE_string(
     "The output directory where the model checkpoints will be written. If "
     "`init_checkpoint' is not provided when exporting, the latest checkpoint "
     "from this directory will be exported.")
+flags.DEFINE_integer("num_categories", None, "Number of categories in the "
+                    "classification")
+flags.DEFINE_string('classifier_type', None, 'The type of classification. '
+                 '["Grammar", "Meaning"]')
 
 ## Other parameters
 
@@ -118,16 +117,28 @@ flags.DEFINE_string("export_path", None, "Path to save the exported model.")
 
 
 def file_based_input_fn_builder(input_file, max_seq_length,
-                                is_training, drop_remainder):
+                                is_training, drop_remainder, classifier_type):
   """Creates an `input_fn` closure to be passed to TPUEstimator."""
+  if classifier_type == "Meaning":
+    name_to_features = {
+       "input_ids_source": tf.FixedLenFeature([max_seq_length], tf.int64),
+       "input_mask_source": tf.FixedLenFeature([max_seq_length], tf.int64),
+       "segment_ids_source": tf.FixedLenFeature([max_seq_length], tf.int64),
+       "input_ids_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
+       "input_mask_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
+       "segment_ids_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
+      "labels": tf.FixedLenFeature([1], tf.int64),
+      }
+  elif classifier_type == "Grammar":
+    name_to_features = {
+       "input_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
+       "input_mask": tf.FixedLenFeature([max_seq_length], tf.int64),
+       "segment_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
+      "labels": tf.FixedLenFeature([1], tf.int64)
+      }
+  else:
+    raise ValueError("Classifier type must be either Grammar or Meaning")
 
-  name_to_features = {
-      "input_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
-      "input_mask": tf.FixedLenFeature([max_seq_length], tf.int64),
-      "segment_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
-      "labels": tf.FixedLenFeature([max_seq_length], tf.int64),
-      "labels_mask": tf.FixedLenFeature([max_seq_length], tf.int64),
-  }
 
   def _decode_record(record, name_to_features):
     """Decodes a record to a TensorFlow example."""
@@ -185,7 +196,7 @@ def main(_):
     raise ValueError("At least one of `do_train`, `do_eval` or `do_export` must"
                      " be True.")
 
-  model_config = run_lasertagger_utils.LaserTaggerConfig.from_json_file(
+  model_config = run_classifier_utils.LaserTaggerConfig.from_json_file(
       FLAGS.model_config_file)
 
   if FLAGS.max_seq_length > model_config.max_position_embeddings:
@@ -196,8 +207,6 @@ def main(_):
 
   if not FLAGS.do_export:
     tf.io.gfile.makedirs(FLAGS.output_dir)
-
-  num_tags = len(utils.read_label_map(FLAGS.label_map_file))
 
   tpu_cluster_resolver = None
   if FLAGS.use_tpu and FLAGS.tpu_name:
@@ -224,16 +233,17 @@ def main(_):
   else:
     num_train_steps, num_warmup_steps = None, None
 
-  model_fn = run_lasertagger_utils.ModelFnBuilder(
+  model_fn = run_classifier_utils.ModelFnBuilder(
       config=model_config,
-      num_tags=num_tags,
+      num_categories=FLAGS.num_categories,
       init_checkpoint=FLAGS.init_checkpoint,
       learning_rate=FLAGS.learning_rate,
       num_train_steps=num_train_steps,
       num_warmup_steps=num_warmup_steps,
       use_tpu=FLAGS.use_tpu,
       use_one_hot_embeddings=FLAGS.use_tpu,
-      max_seq_length=FLAGS.max_seq_length).build()
+      max_seq_length=FLAGS.max_seq_length,
+      classifier_type=FLAGS.classifier_type).build()
 
   # If TPU is not available, this will fall back to normal Estimator on CPU
   # or GPU.
@@ -250,7 +260,8 @@ def main(_):
         input_file=FLAGS.training_file,
         max_seq_length=FLAGS.max_seq_length,
         is_training=True,
-        drop_remainder=True)
+        drop_remainder=True, 
+        classifier_type=FLAGS.classifier_type)
     estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
 
   if FLAGS.do_eval:
@@ -269,7 +280,8 @@ def main(_):
         input_file=FLAGS.eval_file,
         max_seq_length=FLAGS.max_seq_length,
         is_training=False,
-        drop_remainder=eval_drop_remainder)
+        drop_remainder=eval_drop_remainder,
+        classifier_type=FLAGS.classifier_type)
 
     for ckpt in tf.contrib.training.checkpoints_iterator(
         FLAGS.output_dir, timeout=FLAGS.eval_timeout):
@@ -282,11 +294,24 @@ def main(_):
     tf.logging.info("Exporting the model...")
     def serving_input_fn():
       def _input_fn():
-        features = {
+        if FLAGS.classifier_type == "Meaning":
+          features = {
+            "input_ids_source": tf.placeholder(tf.int64, [None, None]),
+            "input_mask_source": tf.placeholder(tf.int64, [None, None]),
+            "segment_ids_source": tf.placeholder(tf.int64, [None, None]),
+            "input_ids_summary": tf.placeholder(tf.int64, [None, None]),
+            "input_mask_summary": tf.placeholder(tf.int64, [None, None]),
+            "segment_ids_summary": tf.placeholder(tf.int64, [None, None])
+           }
+        elif FLAGS.classifier_type == "Grammar":
+          features = {
             "input_ids": tf.placeholder(tf.int64, [None, None]),
             "input_mask": tf.placeholder(tf.int64, [None, None]),
             "segment_ids": tf.placeholder(tf.int64, [None, None]),
-        }
+          }        
+        else:
+            raise ValueError("Classifier type must be either Grammar or Meaning.")
+            
         return tf.estimator.export.ServingInputReceiver(
             features=features, receiver_tensors=features)
       return _input_fn
@@ -299,5 +324,6 @@ def main(_):
 
 if __name__ == "__main__":
   flags.mark_flag_as_required("model_config_file")
-  flags.mark_flag_as_required("label_map_file")
+  flags.mark_flag_as_required("num_categories")
+  flags.mark_flag_as_required("classifier_type")
   tf.app.run()
