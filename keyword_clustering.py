@@ -59,9 +59,8 @@ def main(args):
             tsv_writer = csv.writer(f, delimiter='\t')
             for shortened_keywords, keyword_list in shortened_keywords_list[index].items():
                 if len(keyword_list) > 1:
-                    clustered_keywords += len(keyword_list)        
-                    keyword_list.insert(0, len(keyword_list))
-                    keyword_list.insert(0, shortened_keywords)
+                    clustered_keywords += len(keyword_list)      
+                    keyword_list = [shortened_keywords, len(keyword_list)] + keyword_list
                     tsv_writer.writerow(keyword_list)  
 
         print(clustered_keywords, "of", total_keyword_counts ,"keywords are clustered")    
@@ -75,9 +74,15 @@ if __name__ == "__main__":
     positional arguments:
       input_file_path   the directory of the LaserTagger model output
       output_file_path  Where the clustering result will be stored. If there is output from only one model 
-      in the input file, then the output will be savedat this path. Otherwise, the name of the model will be 
+      in the input file, then the output will be saved at this path. Otherwise, the name of the model will be 
       appended to the end of the file name and the clustering result corresponding to each model will be 
       saved in separate files.
+    
+    The input file format:
+    The input file needs to be a tsv file should contain two or more columns. The first column should be
+    the original keyword, and the second and later columns should be the corresponding shortened versions
+    of the keyword output by different models. The first row of the second and later columns needs to be 
+    the name of the model.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("input_file_path", help="the directory of the LaserTagger model output")
