@@ -16,17 +16,18 @@
 
 from __future__ import print_function
 
-from flask import Flask, render_template, request
-from predict_main import construct_example
-import nltk
-import bert_example
-import utils
-import tagging_converter
-import googleapiclient
-import tagging
-import bert_example_classifier
-from nltk.tokenize.treebank import TreebankWordDetokenizer
 from builtins import FileExistsError
+from flask import Flask, render_template, request
+import googleapiclient
+import nltk
+from nltk.tokenize.treebank import TreebankWordDetokenizer
+
+import bert_example
+import bert_example_classifier
+import tagging
+import tagging_converter
+import utils
+from predict_main import construct_example
 
 app = Flask(__name__)
 
@@ -53,19 +54,30 @@ elif embedding_type == "POS_concise":
     vocab_file = "gs://bert_traning_yechen/trained_bert_uncased/bert_POS_concise/vocab.txt"
 else:
     raise ValueError("Unrecognized embedding type")
-    
+
 label_map = utils.read_label_map(label_map_file)
 converter = tagging_converter.TaggingConverter(
     tagging_converter.get_phrase_vocabulary_from_label_map(label_map), True)
 id_2_tag = {tag_id: tagging.Tag(tag) for tag, tag_id in label_map.items()}
-builder = bert_example.BertExampleBuilder(label_map, vocab_file,
-128, do_lower_case, converter, embedding_type, enable_masking)
+builder = bert_example.BertExampleBuilder(label_map, vocab_file, 128, do_lower_case,
+                                          converter, embedding_type, enable_masking)
 
 grammar_vocab_file = "gs://publicly_available_models_yechen/grammar_checker/vocab.txt"
 grammar_builder = bert_example_classifier.BertGrammarExampleBuilder(grammar_vocab_file, 128, False)
 
 
 def predict_json(project, model, instances, version=None):
+    """ Send a json object to GCP deployed model for prediction.
+    Args:
+      project: name of the project where the model is in
+      model: the name of the deployed model
+      instances: the json object for model input
+      version: the version of the model to use. If not specified,
+        will use the default version.
+
+    Returns:
+      Inference from the deployed ML model.
+    """
     service = googleapiclient.discovery.build('ml', 'v1')
     name = 'projects/{}/models/{}'.format(project, model)
 
@@ -85,13 +97,15 @@ def predict_json(project, model, instances, version=None):
 
 @app.route('/', methods=['GET'])
 def home():
+    """Returns the home page of the web app."""
     return render_template('index.html')
 
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    """ Receives user inputs, passes to deployed GCP ML models,
+    and displays a page with the result."""
     inp_string = [x for x in request.form.values()]
-   
     sentence = nltk.word_tokenize(inp_string[0])
     inputs, example = construct_example(sentence, builder)
 
@@ -113,7 +127,7 @@ def predict():
     except:
         grammar = grammar_prediction[0][0]
 
-    prediction= TreebankWordDetokenizer().detokenize(prediction.split())
+    prediction = TreebankWordDetokenizer().detokenize(prediction.split())
     return render_template('index.html', input=inp_string[0], prediction_bert=prediction, grammar=grammar)
 
 
