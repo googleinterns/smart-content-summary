@@ -7,8 +7,8 @@ https://github.com/google-research/lasertagger) script, and
 is built on Python 3, Tensorflow and 
 [BERT](https://github.com/google-research/bert). 
 
-BERT transformer model is used as the encoder, and for the decoder, a
-feed-forward network is applied to the decoder. This model should be trained on
+BERT transformer model is used as the encoder, and the decoder is a
+feed-forward network. This model should be trained on
 the [Microsoft Abstractive Text Compression Dataset](
 https://www.microsoft.com/en-us/download/confirmation.aspx?id=54262).
 This dataset contains ratings for each source-summary pair in terms of grammar and 
