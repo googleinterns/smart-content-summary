@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<!--From https://codepen.io/frytyler/pen/EGdtg-->
+<head>
+    <meta charset="UTF-8">
+    <title>Sentence Summarizer</title>
+    <link href='https://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Arimo' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Hind:300' rel='stylesheet' type='text/css'>
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300' rel='stylesheet' type='text/css'>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+
+<div style="justify-content: center; text-align: center; margin-top: 5rem;" class="login">
+    <form action="{{ url_for('predict')}}" method="post" id="form1">
+        <div class="wrap">
+            <h1>Sentence Summarizer</h1>
+            <div class="search">
+                <input type="text" class="searchTerm" id="sentence" name="sentence"
+                       placeholder="Enter input sentence(s)">
+                <button id="my_button" onclick="myFunction()" class="searchButton">
+                    <i class="fa fa-paper-plane" style="font-size:15px; color: white"></i>
+                </button>
+            </div>
+        </div>
+
+        <br>
+        <br>
+        <br>
+        <br>
+        <br>
+
+        <div class="wrap_output">
+            <div class="loader" id="loader" style="margin-left: 48%; display:none;"></div>
+
+            <div id="result">
+                {% if input != null: %}
+                <p style="font-size: 20px;"><strong>Input: </strong> {{ input }}</p>
+
+                {% if grammar == 1: %}
+                <p style="font-size: 20px;"><i class="fa fa-check-circle" style="font-size:20px; color: #34A853"></i>
+                    &nbsp
+                    <strong>Summary: </strong>{{ prediction_bert }}</p>
+
+                {% elif grammar == 0: %}
+                <p style="font-size: 20px;"><i class="fa fa-exclamation-circle"
+                                               style="font-size:20px; color: #FBBC04"></i>
+                    &nbsp
+                    <strong>Summary: </strong>{{ prediction_bert }}</p>
+
+                {% else: %}
+                <p style="font-size: 20px;"><strong>Summary: </strong> {{ prediction_bert }}</p>
+                {%endif%}
+                {%endif%}
+            </div>
+        </div>>
+    </form>
+</div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script>
+    console.clear();
+    (function () {
+        $("#my_button").click(function (e) {
+            if (!$("#sentence").val().trim()) {
+                alert("Please enter an input text.")
+            } else {
+                console.log('Form submitted');
+                loader.style.display = "block";
+                result.style.display = "none"
+                $('#form1').submit(method = "post");
+            }
+            e.preventDefault();
+        });
+    }(jQuery));
+</script>
+
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+        integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+        crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"
+        integrity="sha384-cs/chFZiN24E4KMATLdqdvsezGxaGsi4hLGOzlXwp5UZB1LY//20VyM2taTB4QvJ"
+        crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"
+        integrity="sha384-uefMccjFJAIv6A+rW+L4AHf99KvxDjWSu1z9VI8SKNVmz4sk7buKt/6v9KI65qnm"
+        crossorigin="anonymous"></script>
+</body>
+<style>
+    .loader {
+        border: 16px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 16px solid #4285F4;
+        border-bottom: 16px solid #4285F4;
+        width: 10px;
+        height: 10px;
+        -webkit-animation: spin 2s linear infinite;
+        animation: spin 2s linear infinite;
+    }
+
+    @-webkit-keyframes spin {
+        0% {
+            -webkit-transform: rotate(0deg);
+        }
+        100% {
+            -webkit-transform: rotate(360deg);
+        }
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .search {
+        width: 100%;
+        position: relative;
+        display: flex;
+    }
+
+    .searchTerm {
+        width: 100%;
+        border: 2px solid #4285F4;
+        border-right: none;
+        padding: 5px;
+        height: 30px;
+        border-radius: 5px 0 0 5px;
+        outline: none;
+        color: black;
+        font-size: 15px;
+    }
+
+    .searchButton {
+        width: 50px;
+        height: 44px;
+        border: 1px solid #4285F4;
+        background: #4285F4;
+        text-align: center;
+        color: white;
+        border-radius: 0 5px 5px 0;
+        cursor: pointer;
+        font-size: 20px;
+    }
+
+    .wrap {
+        width: 50%;
+        position: absolute;
+        top: 20%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .wrap_output {
+        width: 50%;
+        position: absolute;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+</style>
+</html>
+
