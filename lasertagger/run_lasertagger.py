@@ -128,9 +128,9 @@ flags.DEFINE_string("embedding_type", None, "Type of embedding. ['Normal', 'POS'
                     "'POS_concise', 'Sentence']")
 
 
-flags.DEFINE_float("add_tag_loss_weight", 1, "The weight of loss of add tags.")
-flags.DEFINE_float("delete_tag_loss_weight", 1, "The weight of loss of delete tags.")
-flags.DEFINE_float("keep_tag_loss_weight", 1, "The weight of loss of keep tags.")
+flags.DEFINE_float("add_tag_loss_weight", 1, "The weight of loss for adding tags")
+flags.DEFINE_float("delete_tag_loss_weight", 1, "The weight of loss for deleting tags")
+flags.DEFINE_float("keep_tag_loss_weight", 1, "The weight of loss for keeping tags.")
 
 def file_based_input_fn_builder(input_file, max_seq_length,
                                 is_training, drop_remainder):
