@@ -127,6 +127,11 @@ flags.DEFINE_float("verb_loss_weight", 0, "The weight of the loss for deleting"
 flags.DEFINE_string("embedding_type", None, "Type of embedding. ['Normal', 'POS', " 
                     "'POS_concise', 'Sentence']")
 
+
+flags.DEFINE_float("add_tag_loss_weight", 1, "The weight of loss for adding tags")
+flags.DEFINE_float("delete_tag_loss_weight", 1, "The weight of loss for deleting tags")
+flags.DEFINE_float("keep_tag_loss_weight", 1, "The weight of loss for keeping tags.")
+
 def file_based_input_fn_builder(input_file, max_seq_length,
                                 is_training, drop_remainder):
   """Creates an `input_fn` closure to be passed to TPUEstimator."""
@@ -239,7 +244,6 @@ def main(_):
   else:
     num_train_steps, num_warmup_steps = None, None
 
-  
   if FLAGS.verb_loss_weight < 0:
         raise ValueError("the weight of verb loss should be >= 0")
   
@@ -253,9 +257,14 @@ def main(_):
   lines = [line.strip() for line in lines]  
 
   delete_tags = np.zeros(len(lines))
+  delete_tags_ids = []
+  keep_tags_ids = []
   for i, line in enumerate(lines):
     if re.match("DELETE", line):
         delete_tags[i] = 1
+        delete_tags_ids.append(i)
+    if re.match("KEEP", line):
+        keep_tags_ids.append(i)
   
   if FLAGS.embedding_type == "POS":
     model_verb_tags = VERB_TAGS
@@ -263,6 +272,7 @@ def main(_):
     model_verb_tags = VERB_TAGS_CONCISE
   else:
     model_verb_tags = []
+    
   model_fn = run_lasertagger_utils.ModelFnBuilder(
       config=model_config,
       num_tags=num_tags,
@@ -275,7 +285,13 @@ def main(_):
       max_seq_length=FLAGS.max_seq_length,
       verb_deletion_loss_weight=FLAGS.verb_loss_weight, 
       verb_tags=model_verb_tags, 
-      delete_tags=delete_tags).build()
+      delete_tags=delete_tags, 
+      relative_loss_weight=[FLAGS.add_tag_loss_weight, 
+                            FLAGS.a_tag_loss_weight, 
+                            FLAGS.delete_tag_loss_weight],
+      smallest_add_tag=3, 
+      delete_tags_ids=delete_tags_ids, 
+      keep_tags_ids=keep_tags_ids).build()
 
   # If TPU is not available, this will fall back to normal Estimator on CPU
   # or GPU.
