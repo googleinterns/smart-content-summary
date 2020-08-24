@@ -42,9 +42,9 @@ def main(args):
         read_tsv = csv.reader(tsv_file, delimiter="\t")
         for line in read_tsv:
             if int(line[1]) == 1:
-                sentences_positive.append(line[0])
+                sentences_positive.append(line[3])
             else:
-                sentences_negative.append(line[0])
+                sentences_negative.append(line[3])
 
     
     cleaned_sentences_positive = preprocess_utils.text_strip(sentences_positive)
