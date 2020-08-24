@@ -25,7 +25,7 @@ customizing loss function and loss weights, applying masks, and
 hyperparameter tuning. 
 
 To address the lack of grammar evaluation in existing performance metrics 
-for text summarization, we designed and trained a grammar checker. We 
+for text summarization, we designed and trained a grammar [checker](classifier). We 
 provide the code and instructions for training the grammar checker.
 
 The end-to-end process of this model can be deployed on Google Cloud 
@@ -109,7 +109,7 @@ https://docs.google.com/document/d/1oV8Swp_BDfmDHkhSkWb2wo_ZhC9jIP-Lk7kCbYvdYTM/
 to set up a virtual machine on GCP.
 - If you plan to train with a Cloud TPU, follow this [guide](
 https://docs.google.com/document/d/1PlCB6DOH8LUBsN8UcgPxzds9MqPRFIPs_rht9fWqbAA/edit?usp=sharing) 
-to set up a TPU on GCP.
+to set up a TPU on GCP. Make sure that your TPU has the same name as your VM. 
 - Download the pre-trained BERT model from sources suggested above. To copy a 
 folder in the GCP bucket to your virtual machine, use the `gsutil cp` command.
 
