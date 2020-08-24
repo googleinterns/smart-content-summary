@@ -19,15 +19,11 @@ import csv
 import os
 
 
-def main(args):
-    input_file_path = os.path.expanduser(args.input_file_path)
-    if not os.path.isfile(input_file_path):
-        raise ValueError("Cannot find the input file.")
-
+def cluster_keywords(intput_file_path):
     shortened_keywords_list = []
     total_keyword_counts = 0
     
-    with open(input_file_path) as f:
+    with open(intput_file_path) as f:
         read_tsv = csv.reader(f, delimiter="\t") 
         model_name_list = next(read_tsv)[1:]
         for i in range(len(model_name_list)):
@@ -43,6 +39,15 @@ def main(args):
                     shortened_keywords_list[index][shortened_keyword] = [line[0]]
                 else:
                     shortened_keywords_list[index][shortened_keyword].append(line[0])
+    return shortened_keywords_list, total_keyword_counts, model_name_list    
+    
+
+def main(args):
+    input_file_path = os.path.expanduser(args.input_file_path)
+    if not os.path.isfile(input_file_path):
+        raise ValueError("Cannot find the input file.")
+    
+    shortened_keywords_list, total_keyword_counts, model_name_list = cluster_keywords(input_file_path)
     
     output_file_path = args.output_file_path
     file_name = output_file_path.split("/")[-1].split(".")[0]
