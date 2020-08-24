@@ -279,7 +279,7 @@ First, use the `gsutil cp` command to copy the exported LaserTagger model to a G
 bucket. Then, create a model on the AI platform by running:
 ```
 export MODEL_NAME=lasertagger
-gcloud ai-platform models create $MODEL_NAME --enable
+gcloud ai-platform models create $MODEL_NAME --enable-logging
 ```
 Then, run the following commands to deploy the exported model as a new version:
 ```
