@@ -64,7 +64,7 @@ To preprocess the dataset, and split to train, tune, and test set, run the
 following command
 
 ```
-python preprocess_MS_dataset.py path/to/raw/data num_of_tuning num_of_testing
+python preprocess_MS_dataset_main.py path/to/raw/data num_of_tuning num_of_testing
 ```
 where we use 3,000 samples for tuning and 3,000 samples for testing in the project. 
 The preprocessed and split dataset will be saved in three tsv files named 
@@ -76,8 +76,9 @@ We also provide preprocessing scripts for three other datasets:
 [Google sentence compression dataset](
 https://github.com/google-research-datasets/sentence-compression), and 
 [reddit_tifu dataset](https://www.tensorflow.org/datasets/catalog/reddit_tifu). 
-See preprocess_news_dataset.py, preprocess_google_dataset.py, and 
-preprocess_reddit_dataset.py for code and instructions.
+See [preprocess_news_dataset_main.py](preprocess_news_dataset_main.py), 
+[preprocess_google_dataset_main.py](preprocess_google_dataset_main.py), and 
+[preprocess_reddit_dataset_main.py](preprocess_reddit_dataset_main.py) for code and instructions.
 
 The preprocessing script also computes basic statistics of the dataset. A 
 sample output when preprocessing the MSF dataset is
@@ -103,7 +104,7 @@ designed for training on the Google Cloud Platform. Before running the script,
 there are several prerequisites:
 - Create or have access to a Google Storage Bucket. Currently, the GCP bucket 
 path is set to gs://trained_models_yechen/. If you create another bucket, change 
-the path by changing the GCP_BUCKET variable in streamline_training.py.
+the path by changing the GCP_BUCKET variable in [streamline_training.py](streamline_training.py).
 -  Set up a virtual machine to run the script on. Follow this [guide](
 https://docs.google.com/document/d/1oV8Swp_BDfmDHkhSkWb2wo_ZhC9jIP-Lk7kCbYvdYTM/edit#heading=h.o18hkt51hrci) 
 to set up a virtual machine on GCP.
@@ -114,7 +115,7 @@ to set up a TPU on GCP. Make sure that your TPU has the same name as your VM.
 folder in the GCP bucket to your virtual machine, use the `gsutil cp` command.
 
 After satisfying the prerequisites, you can run the streamline script 
-streamline_training.py. The usage is 
+[streamline_training.py](streamline_training.py). The usage is 
 ```
 python streamline_training.py \
 [-vocab_size VOCAB_SIZE] [-train_batch_size TRAIN_BATCH_SIZE] \
@@ -190,11 +191,11 @@ The trained and exported model will be saved at the local directory specified by
 `model/output/dir` and in the GCP bucket in a folder whose name is the last folder 
 name of model/output/dir. Currently, the GCP bucket is set to be 
 gs://trained_models_yechen/. If you would like to save to another bucket, change 
-the GCP_BUCKET variable in streamline_training.py. 
+the GCP_BUCKET variable in [streamline_training.py](streamline_training.py). 
 
 **3.  Prediction**
 
-The custom_predict.py runs prediction on input and computes SARI score and exact 
+The [custom_predict.py](custom_predict.py) runs prediction on input and computes SARI score and exact 
 score if applicable. The usage is
 ```
 python custom_predict.py [-score] \ 
@@ -258,7 +259,8 @@ application to the GCP App Engine.
 ### 1. Re-export the LaserTagger Model
 The GCP app engine only accepts exported model with one metagraph. However, if the 
 model is trained on GPU or TPU, the exported version from above very likely contains 
-more than one metagraph. To re-export the model, run the export_model_for_gcp.py in 
+more than one metagraph. To re-export the model, run the 
+[export_model_for_gcp.py](GCP_deploy/export_model_for_gcp.py) in 
 the [GCP_deploy](GCP_deploy) folder.
 ```
 python run the export_model_for_gcp.py exported/model/dir output/dir
