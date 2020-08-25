@@ -241,7 +241,10 @@ def __training(args):
                        " --num_train_epochs=" + num_train_epochs + \
                        " --warmup_proportion" + warmup_proportion + \
                        " --verb_loss_weight" + str(args.verb_deletion_loss) + \
-                       " --embedding_type" + args.embedding_type
+                       " --embedding_type" + args.embedding_type + \
+                       " --add_tag_loss_weight" + str(args.add_tag_loss_weight) + \
+                       " --delete_tag_loss_weight" + str(args.delete_tag_loss_weight) + \
+                       " --keep_tag_loss_weight" + str(args.keep_tag_loss_weight) 
     
     if args.use_tpu:
         print("Running on cloud TPU")
@@ -360,6 +363,12 @@ if __name__ == "__main__":
       -verb_deletion_loss VERB_DELETION_LOSS
                             The weight of verb deletion loss. Need to be >= 0. default=0. Cannot be set to a number 
                             other than 0 unless the embedding_type is POS.
+      -add_tag_loss_weight ADD_TAG_LOSS_WEIGHT
+                            The weight of loss for adding tags. default=1
+      -delete_tag_loss_weight DELETE_TAG_LOSS_WEIGHT
+                            The weight of loss for deleting tags. default=1
+      -keep_tag_loss_weight KEEP_TAG_LOSS_WEIGHT
+                            The weight of loss for keeping tags. default=1
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("model_output_dir", help="the directory of the model output")
@@ -398,6 +407,10 @@ if __name__ == "__main__":
     parser.add_argument("-masking", action="store_true", help="If added, numbers and symbols will be masked.")
     parser.add_argument("-verb_deletion_loss", type=float, help="The weight of verb deletion loss. Need to be >= 0. default=0."
                         "Cannot be set to a number other than 0 unless the embedding_type is POS or POS_concise.", default=0)
+    
+    parser.add_argument("-add_tag_loss_weight", type=float, help="The weight of loss for adding tags. default=1", default=1)
+    parser.add_argument("-delete_tag_loss_weight", type=float, help="The weight of loss for deleting tags. default=1", default=1)
+    parser.add_argument("-keep_tag_loss_weight", type=float, help="The weight of loss for keeping tags. default=1", default=1)
     args = parser.parse_args()
     
     if args.use_tpu and (args.gbucket is None):
