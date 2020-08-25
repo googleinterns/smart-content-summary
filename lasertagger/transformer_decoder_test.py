@@ -16,14 +16,12 @@
 
 import numpy as np
 import tensorflow as tf
-import unittest
-from unittest import TestCase
 
 import transformer_decoder
 from official_transformer import model_params
 
 
-class TransformerDecoderTestCase(TestCase):    
+class TransformerDecoderTestCase(tf.test.TestCase):    
     
     def test_transformer_decoder_without_target(self):
         batch_size = 256
@@ -37,7 +35,7 @@ class TransformerDecoderTestCase(TestCase):
 
             decoder = transformer_decoder.TransformerDecoder(
                 params=model_params.BASE_PARAMS, train=True)
-            result = decoder.__call__(inputs, encoder_outputs)
+            result = decoder(inputs, encoder_outputs)
 
             self.assertIn('outputs', result)
             self.assertIn('scores', result)
@@ -55,11 +53,11 @@ class TransformerDecoderTestCase(TestCase):
             targets = tf.constant(np.zeros([batch_size, target_length]), dtype="int32")
             decoder = transformer_decoder.TransformerDecoder(
                 params=model_params.BASE_PARAMS, train=True)
-            result = decoder.__call__(inputs, encoder_outputs, targets)
+            result = decoder(inputs, encoder_outputs, targets)
 
             result_dimensions = result.get_shape().as_list()
             self.assertEqual(result_dimensions, [batch_size, input_length, model_params.BASE_PARAMS['vocab_size']])
         
 
 if __name__ == '__main__':
-    unittest.main()
+    tf.test.main()
