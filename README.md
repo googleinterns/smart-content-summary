@@ -300,7 +300,11 @@ can significantly decrease the inference time.
 
 ### 3. Build the Web Application on GCP App Engine
 Open a shell terminal in the GCP console. Use `git clone` to copy the repository to 
-the shell terminal. Then running the following to deploy the web app:
+the shell terminal. In addition, copy the following files and folders in the 
+[lasertagger](lasertagger) folder to the gcp_deploy folder: [bert](lasertagger/bert),
+[bert_example.py](lasertagger/bert_example.py), [custom_utils.py](lasertagger/custom_utils.py), 
+[tagging.py](lasertagger/tagging.py), [tagging_converter.py](lasertagger/tagging_converter.py), 
+and [utils.py](lasertagger/utils.py). Then running the following to deploy the web app:
 ```
 cd gcp_deploy
 gcloud app deploy
