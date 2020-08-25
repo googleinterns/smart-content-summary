@@ -20,6 +20,7 @@ import subprocess
 import language_tool_python
 import nltk
 import preprocess_utils
+from custom_post_processing_utils import post_processing
 
 """Use trained LaserTagger model to make predictions."""
 
@@ -187,7 +188,7 @@ def main(args):
         tsv_file = open(os.path.expanduser(TEMP_FOLDER_PATH + "/output_" + model + ".tsv"))
         read_tsv = csv.reader(tsv_file, delimiter="\t")
         for row in read_tsv:
-            output_row.append(row[1])
+            output_row.append(post_processing(row[1]))
         output_row_list.append(output_row)
 
     if whether_grammar:
@@ -197,7 +198,7 @@ def main(args):
             tsv_file = open(os.path.expanduser(TEMP_FOLDER_PATH + "/output_" + model + ".tsv"))
             read_tsv = csv.reader(tsv_file, delimiter="\t")
             for row in read_tsv:
-                output_row.append(tool.correct(row[1]))
+                output_row.append(tool.correct(post_processing(row[1])))
             output_row_list.append(output_row)
 
     if whether_score:
