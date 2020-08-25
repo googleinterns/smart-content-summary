@@ -25,7 +25,11 @@ from keyword_clustering import cluster_keywords
 TEMP_TESTING_FILE = "./temp_file_for_testing_keyword_clustering"
 
 
-class KeywordClusteringTest(TestCase):    
+class KeywordClusteringTest(TestCase):   
+    def tearDown(self):
+        os.remove(TEMP_TESTING_FILE)        
+        
+        
     def test_keyword_clustering_with_nonempty_summary(self):
         with open(TEMP_TESTING_FILE, "wt") as f:
             tsv_writer = csv.writer(f, delimiter='\t')
@@ -41,8 +45,6 @@ class KeywordClusteringTest(TestCase):
                          {'cluster1': ['Object1', 'Object2'], 'cluster2': ['Object3', 'Object4']}])
         self.assertEqual(total_keyword_counts, 4)
         self.assertEqual(model_name_list, ["Model1", "Model2"])
-            
-        os.remove(TEMP_TESTING_FILE)
     
     
     def test_keyword_clustering_with_empty_summary(self):
@@ -60,8 +62,6 @@ class KeywordClusteringTest(TestCase):
                          {'cluster1': ['Object1', 'Object2']}])
         self.assertEqual(total_keyword_counts, 4)
         self.assertEqual(model_name_list, ["Model1", "Model2"])
-            
-        os.remove(TEMP_TESTING_FILE)
     
     
 if __name__ == '__main__':
