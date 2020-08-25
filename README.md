@@ -30,8 +30,8 @@ provide the code and instructions for training the grammar checker.
 
 The end-to-end process of this model can be deployed on Google Cloud 
 Platform, where the web interface accepts a text input, and returns its 
-summarized version along with a grammar rating of the summary. The code for 
-the deployment is also provided.
+summarized version along with a grammar rating of the summary. The 
+[code](GCP_deploy) for the deployment is also provided.
 
 ## Modified LaserTagger
 The modified LaserTagger is built on Python 3, Tensorflow and BERT. It works 
