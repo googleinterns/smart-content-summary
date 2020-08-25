@@ -24,7 +24,10 @@ import preprocess_utils
 
 TEMP_TESTING_FILE = "./temp_file_for_testing_custom_predict.tsv"
 
-class CustomPredictTest(TestCase):    
+class CustomPredictTest(TestCase): 
+    def tearDown(self):
+        os.remove(TEMP_TESTING_FILE)
+        
     def test_preprocess_input_with_scoring_and_two_rows(self):
         with open(TEMP_TESTING_FILE, "wt") as f:
             tsv_writer = csv.writer(f, delimiter='\t')
@@ -38,8 +41,6 @@ class CustomPredictTest(TestCase):
         for i in range(10):
             self.assertEqual(sentences[i], "Sample" + str(i))
             self.assertEqual(summaries[i], "Summary" + str(i))
-            
-        os.remove(TEMP_TESTING_FILE)
     
     
     def test_preprocess_input_with_scoring_and_only_one_row(self):
@@ -51,9 +52,7 @@ class CustomPredictTest(TestCase):
         with self.assertRaises(Exception):
             sentences,summaries = preprocess_input(input_file_path=TEMP_TESTING_FILE,
                                                   whether_score=True)
-        
-        os.remove(TEMP_TESTING_FILE)
-    
+            
     
     def test_preprocess_input_without_scoring_and_only_one_rows(self):
         with open(TEMP_TESTING_FILE, "wt") as f:
@@ -68,8 +67,7 @@ class CustomPredictTest(TestCase):
         for i in range(10):
             self.assertEqual(sentences[i], "Sample" + str(i))
             self.assertEqual(summaries[i], "Sample" + str(i))
-            
-        os.remove(TEMP_TESTING_FILE)
+
 
 if __name__ == '__main__':
     unittest.main()
