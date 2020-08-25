@@ -47,7 +47,7 @@ class PreprocessCOLADatasetForClassifierTest(TestCase):
                 tsv_writer.writerow(["sample", "1"])
                 
         
-    def __clean_up(self):
+    def tearDown(self):
         os.remove(TEMP_COLA_FILE_PATH)
         os.remove(TEMP_MS_FILE_PATH)
         if os.path.exists(OUTPUT_FILE_PATH):
@@ -75,7 +75,6 @@ class PreprocessCOLADatasetForClassifierTest(TestCase):
                     negative_samples += 1
         
         self.assertAlmostEqual(negative_samples/total_samples, goal_percentage, places=2)
-        self.__clean_up()
     
     
     def test_preprocess_with_a_ratio_too_large(self):
@@ -87,7 +86,6 @@ class PreprocessCOLADatasetForClassifierTest(TestCase):
             subprocess.run(["python", "preprocess_cola_dataset_for_classifier.py", 
                             "-goal_percentage_of_neg_samples=" + str(goal_percentage), 
                             TEMP_COLA_FILE_PATH, TEMP_MS_FILE_PATH], check=True, stdout=DEVNULL, stderr=DEVNULL)
-        self.__clean_up()
         
     
     def test_preprocess_with_a_ratio_too_small(self):
@@ -99,7 +97,6 @@ class PreprocessCOLADatasetForClassifierTest(TestCase):
             subprocess.run(["python", "preprocess_cola_dataset_for_classifier.py", 
                             "-goal_percentage_of_neg_samples=" + str(goal_percentage), 
                             TEMP_COLA_FILE_PATH, TEMP_MS_FILE_PATH], check=True, stdout=DEVNULL, stderr=DEVNULL)
-        self.__clean_up()
         
         
 if __name__ == '__main__':
