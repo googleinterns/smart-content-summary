@@ -28,6 +28,11 @@ TEMP_TEST_FOLDER_1 = "./temp_folder_test_export_model_for_gcp_1"
 TEMP_TEST_FOLDER_2 = "./temp_folder_test_export_model_for_gcp_2"
 
 class ExportModelForGCPTest(TestCase):    
+    def tearDown(self):
+        shutil.rmtree(TEMP_TEST_FOLDER_1)
+        shutil.rmtree(TEMP_TEST_FOLDER_2)
+        
+        
     def test_re_export_model_LaserTagger(self):
         with tf.compat.v1.Session(graph=tf.Graph()) as sess:
             tensor_info_input_ids = tf.saved_model.utils.build_tensor_info(tf.placeholder(tf.int64, [None, None], name="Placeholder"))
@@ -74,9 +79,6 @@ class ExportModelForGCPTest(TestCase):
         output = output.decode("utf-8").strip().split("\n")
         self.assertTrue(serve_metagraph in output)
         self.assertTrue(serve_tpu_metagraph not in output)
-        
-        shutil.rmtree(TEMP_TEST_FOLDER_1)
-        shutil.rmtree(TEMP_TEST_FOLDER_2)
         
     
 if __name__ == '__main__':
