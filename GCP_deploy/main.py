@@ -27,7 +27,7 @@ import bert_example_classifier
 import tagging
 import tagging_converter
 import utils
-from predict_main import construct_example
+from predict_utils import construct_example
 
 app = Flask(__name__)
 
