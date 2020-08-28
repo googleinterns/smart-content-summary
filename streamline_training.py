@@ -335,7 +335,8 @@ if __name__ == "__main__":
         [-learning_rate LEARNING_RATE] [-num_train_epochs NUM_TRAIN_EPOCHS] [-warmup_proportion WARMUP_PROPORTION]
         [-max_input_examples MAX_INPUT_EXAMPLES] [-train] [-export] [-use_tpu] [-gbucket GBUCKET] [-t2t T2T] 
         [-number_layer NUMBER_LAYER] [-hidden_size HIDDEN_SIZE] [-num_attention_head NUM_ATTENTION_HEAD]
-        [-filter_size FILTER_SIZE] [-full_attention FULL_ATTENTION]
+        [-filter_size FILTER_SIZE] [-full_attention FULL_ATTENTION] [-add_tag_loss_weight ADD_TAG_LOSS_WEIGHT]
+        [-delete_tag_loss_weight DELETE_TAG_LOSS_WEIGHT] [-keep_tag_loss_weight KEEP_TAG_LOSS_WEIGHT]
         model_output_dir abs_path_to_lasertagger abs_path_to_bert training_file tuning_file embedding_type
 
     positional arguments:
