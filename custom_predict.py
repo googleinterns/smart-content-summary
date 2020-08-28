@@ -84,6 +84,11 @@ def __preprocess_input(input_file_path, whether_score):
     Args:
         input_file_path: the absolute path to the input file
         whether_score: whether scoring is needed. If scoring is needed, two columns are expected in the input file.
+        
+    Returns:
+        sentences: a list of input sentences
+        summaries: a list of summaries
+        
     Raises:
         Exception: If scoring is required, but target is not found in the input file
     """
@@ -103,6 +108,7 @@ def __preprocess_input(input_file_path, whether_score):
                 summaries.append(row[1])
             except IndexError:
                 tsv_file.close()
+                __clean_up()
                 raise Exception("Whether_score is true. Expected target but only found one column in the input.")
     tsv_file.close()
 
@@ -123,11 +129,7 @@ def __preprocess_input(input_file_path, whether_score):
 
     preprocess_utils.delete_empty_entry(spaced_sentences, spaced_summaries)
 
-    with open(os.path.expanduser(TEMP_FOLDER_PATH + "/cleaned_data.tsv"), 'wt') as out_file:
-        tsv_writer = csv.writer(out_file, delimiter='\t')
-        for i, sentence in enumerate(spaced_sentences):
-            tsv_writer.writerow([sentence, spaced_summaries[i]])
-    print("-------Number of input is", len(spaced_sentences), "-------")
+    return spaced_sentences, spaced_summaries
 
 
 def main(args):
@@ -152,7 +154,14 @@ def main(args):
 
     __clean_up()
     subprocess.call(['mkdir', TEMP_FOLDER_NAME], cwd=os.path.expanduser('~'))
-    __preprocess_input(input_file_path, whether_score)
+    spaced_sentences, spaced_summaries = __preprocess_input(input_file_path, whether_score)
+    
+    with open(os.path.expanduser(TEMP_FOLDER_PATH + "/cleaned_data.tsv"), 'wt') as out_file:
+        tsv_writer = csv.writer(out_file, delimiter='\t')
+        for i, sentence in enumerate(spaced_sentences):
+            tsv_writer.writerow([sentence, spaced_summaries[i]])
+    print("-------Number of input is", len(spaced_sentences), "-------")
+    
 
     # calculate and print predictions to output file 
     for model in list_of_models:

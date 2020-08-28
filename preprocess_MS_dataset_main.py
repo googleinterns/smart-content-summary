@@ -16,75 +16,16 @@ import csv
 import os
 
 import preprocess_utils
+from preprocess_MS_dataset_utils import process_row
 
 """ Preprocess the Microsoft text summarization dataset."""
 
-GRADING_COMMENTS = ["Most important meaning Flawless language", "Most important meaning Minor errors", \
-                    "Most important meaning Disfluent or incomprehensible", "Much meaning Flawless language", \
-                    "Much meaning Minor errors", "Much meaning Disfluent or incomprehensible", \
-                    "Little or none meaning Flawless language", "Little or none meaning Minor errors", \
-                    "Little or none meaning Disfluent or incomprehensible"]
-GRADING_NUMBER = ["6", "7", "9", "11", "12", "14", "21", "22", "24"]
-EXCLUSION_NUMBER = ["9", "14", "21", "22", "24"]
 
 PREPROCESSED_FILE_PATH = "~/preprocessed_MS_dataset.tsv"
 TRAIN_FILE_PATH = "~/train_MS_dataset.tsv"
 TUNE_FILE_PATH = "~/tune_MS_dataset.tsv"
 VALID_FILE_PATH = "~/valid_MS_dataset.tsv"
 
-
-def __process_row(row):
-    """Split a row into the original sentence, its corresponding summary and its rating.
-
-    Args:
-        row: a row in the MS dataset tsv file.
-    Returns:
-        current_original_sentence: the original sentence of the row
-        current_shortened_sentences_list: a list of summaries corresponding to the current_original_sentence
-        current_shortened_ratings_list: the a list of ratings of the summaries in current_shortened_sentences_list
-        count_excluded: number of summaries excluded in the row due to low ratings
-    """
-    count_excluded = 0
-    row_flattened = []
-    for i in range(len(row)):
-        splitted_row = row[i].split(" ||| ")
-        for j in range(len(splitted_row)):
-            if splitted_row[j] not in GRADING_COMMENTS:
-                row_flattened.append(splitted_row[j])
-
-    current_original_sentence = row_flattened[2]
-    current_shortened_sentences_list = []
-    current_shortened_ratings_list = []
-
-    this_shortened_sentence = row_flattened[3]
-    this_shortened_sentence_rating = []
-    for i in range(4, len(row_flattened)):
-        if i + 1 == len(row_flattened):
-            this_shortened_sentence_rating.append(row_flattened[i])
-            this_shortened_sentence_rating = this_shortened_sentence_rating[2:]
-            if len(this_shortened_sentence_rating) == 0 or \
-                    len(set(this_shortened_sentence_rating).intersection(set(EXCLUSION_NUMBER))) / \
-                    len(this_shortened_sentence_rating) < 0.5:
-                current_shortened_sentences_list.append(this_shortened_sentence)
-                current_shortened_ratings_list.append(this_shortened_sentence_rating)
-            else:
-                count_excluded += 1
-
-        elif not row_flattened[i].isnumeric() and not row_flattened[i].split(";")[0].isnumeric():
-            this_shortened_sentence_rating = this_shortened_sentence_rating[2:]
-            if len(this_shortened_sentence_rating) == 0 or \
-                    len(set(this_shortened_sentence_rating).intersection(set(EXCLUSION_NUMBER))) / \
-                    len(this_shortened_sentence_rating) < 0.5:
-                current_shortened_sentences_list.append(this_shortened_sentence)
-                current_shortened_ratings_list.append(this_shortened_sentence_rating)
-                this_shortened_sentence = row_flattened[i]
-                this_shortened_sentence_rating = []
-            else:
-                count_excluded += 1
-        else:
-            this_shortened_sentence_rating.append(row_flattened[i])
-    assert (len(current_shortened_sentences_list) == len(current_shortened_ratings_list))
-    return current_original_sentence, current_shortened_sentences_list, current_shortened_ratings_list, count_excluded
 
 
 def __process_file(file_path):
@@ -106,7 +47,7 @@ def __process_file(file_path):
     ratings = []
     count_excluded = 0
     for row in read_tsv:
-        row_sentence, row_summary, row_rating, row_count_excluded = __process_row(row)
+        row_sentence, row_summary, row_rating, row_count_excluded = process_row(row)
 
         for i in range(len(row_summary)):
             sentences.append(row_sentence)
