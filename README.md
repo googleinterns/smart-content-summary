@@ -127,6 +127,9 @@ python streamline_training.py \
 [-t2t T2T] [-number_layer NUMBER_LAYER] \
 [-hidden_size HIDDEN_SIZE] [-num_attention_head NUM_ATTENTION_HEAD] \
 [-filter_size FILTER_SIZE] [-full_attention FULL_ATTENTION] \
+[-add_tag_loss_weight ADD_TAG_LOSS_WEIGHT] \
+[-delete_tag_loss_weight DELETE_TAG_LOSS_WEIGHT] \
+[-keep_tag_loss_weight KEEP_TAG_LOSS_WEIGHT] \
 model/output/dir abs/path/to/lasertagger abs/path/to/bert \
 path/to/training/file path/to/tuning/file \
 embedding_type
@@ -172,6 +175,9 @@ outputs to.
 - `-verb_deletion_loss VERB_DELETION_LOSS`: the weight of verb deletion loss. Need 
 to be >= 0. default=0. Cannot be set to a number other than 0 unless the 
 embedding_type is POS or POS_concise.
+`-add_tag_loss_weight ADD_TAG_LOSS_WEIGHT`: the weight of loss for adding tags. default=1
+`-delete_tag_loss_weight DELETE_TAG_LOSS_WEIGHT`: the weight of loss for deleting tags. default=1
+`-keep_tag_loss_weight KEEP_TAG_LOSS_WEIGHT`: the weight of loss for keeping tags. default=1
 
 The optional arguments relevant to the model architecture are:
 - `-t2t T2T`: if True, use autoregressive version of LaserTagger. If false, use, 
