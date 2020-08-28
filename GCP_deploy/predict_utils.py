@@ -11,16 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """ Construct BERT example for LaserTagger and Grammar Checer """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 
 def construct_example(sentence, example_builder):
-    """ Construct BERT model.
+  """ Construct BERT model.
     Args:
       sentence: sentence to be converted to BERT example.
       example builder: BERT example builder.
@@ -29,11 +26,11 @@ def construct_example(sentence, example_builder):
       inputs: a dict with all features of the input sentence
       example: bert_example object
     """
-    keys = ['input_ids', 'input_mask', 'segment_ids']
-    example = example_builder.build_bert_example(sentence)
+  keys = ['input_ids', 'input_mask', 'segment_ids']
+  example = example_builder.build_bert_example(sentence)
 
-    if example is None:
-        raise ValueError("Example couldn't be built.")
+  if example is None:
+    raise ValueError("Example couldn't be built.")
 
-    inputs = {key: example.features[key] for key in keys}
-    return inputs, example
+  inputs = {key: example.features[key] for key in keys}
+  return inputs, example

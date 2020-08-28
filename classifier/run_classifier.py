@@ -1,32 +1,22 @@
-# coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""BERT-based Classifier runner."""
 
-# Lint as: python3
-"""BERT-based LaserTagger runner."""
+from __future__ import absolute_import, division, print_function
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
-
-from typing import Text
 from absl import flags
-
 import run_classifier_utils
-import utils
-
 import tensorflow as tf
 
 FLAGS = flags.FLAGS
@@ -36,18 +26,17 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("training_file", None,
                     "Path to the TFRecord training file.")
 flags.DEFINE_string("eval_file", None, "Path to the the TFRecord dev file.")
-flags.DEFINE_string(
-    "model_config_file", None,
-    "The config json file specifying the model architecture.")
+flags.DEFINE_string("model_config_file", None,
+                    "The config json file specifying the model architecture.")
 flags.DEFINE_string(
     "output_dir", None,
     "The output directory where the model checkpoints will be written. If "
     "`init_checkpoint' is not provided when exporting, the latest checkpoint "
     "from this directory will be exported.")
 flags.DEFINE_integer("num_categories", None, "Number of categories in the "
-                    "classification")
+                     "classification")
 flags.DEFINE_string('classifier_type', None, 'The type of classification. '
-                 '["Grammar", "Meaning"]')
+                    '["Grammar", "Meaning"]')
 
 ## Other parameters
 
@@ -65,17 +54,18 @@ flags.DEFINE_integer(
 flags.DEFINE_bool("do_train", False, "Whether to run training.")
 flags.DEFINE_bool("do_eval", False, "Whether to run eval on the dev set.")
 flags.DEFINE_bool("do_export", False, "Whether to export a trained model.")
-flags.DEFINE_bool("eval_all_checkpoints", False, "Run through all checkpoints.")
+flags.DEFINE_bool("eval_all_checkpoints", False,
+                  "Run through all checkpoints.")
 flags.DEFINE_integer(
     "eval_timeout", 600,
     "The maximum amount of time (in seconds) for eval worker to wait between "
     "checkpoints.")
 
-
 flags.DEFINE_integer("train_batch_size", 32, "Total batch size for training.")
 flags.DEFINE_integer("eval_batch_size", 8, "Total batch size for eval.")
 flags.DEFINE_integer("predict_batch_size", 8, "Total batch size for predict.")
-flags.DEFINE_float("learning_rate", 3e-5, "The initial learning rate for Adam.")
+flags.DEFINE_float("learning_rate", 3e-5,
+                   "The initial learning rate for Adam.")
 flags.DEFINE_float("num_train_epochs", 3.0,
                    "Total number of training epochs to perform.")
 flags.DEFINE_float(
@@ -116,29 +106,28 @@ flags.DEFINE_string("master", None,
 flags.DEFINE_string("export_path", None, "Path to save the exported model.")
 
 
-def file_based_input_fn_builder(input_file, max_seq_length,
-                                is_training, drop_remainder, classifier_type):
+def file_based_input_fn_builder(input_file, max_seq_length, is_training,
+                                drop_remainder, classifier_type):
   """Creates an `input_fn` closure to be passed to TPUEstimator."""
   if classifier_type == "Meaning":
     name_to_features = {
-       "input_ids_source": tf.FixedLenFeature([max_seq_length], tf.int64),
-       "input_mask_source": tf.FixedLenFeature([max_seq_length], tf.int64),
-       "segment_ids_source": tf.FixedLenFeature([max_seq_length], tf.int64),
-       "input_ids_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
-       "input_mask_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
-       "segment_ids_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
-      "labels": tf.FixedLenFeature([1], tf.int64),
-      }
+        "input_ids_source": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "input_mask_source": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "segment_ids_source": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "input_ids_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "input_mask_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "segment_ids_summary": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "labels": tf.FixedLenFeature([1], tf.int64),
+    }
   elif classifier_type == "Grammar":
     name_to_features = {
-       "input_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
-       "input_mask": tf.FixedLenFeature([max_seq_length], tf.int64),
-       "segment_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
-      "labels": tf.FixedLenFeature([1], tf.int64)
-      }
+        "input_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "input_mask": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "segment_ids": tf.FixedLenFeature([max_seq_length], tf.int64),
+        "labels": tf.FixedLenFeature([1], tf.int64)
+    }
   else:
     raise ValueError("Classifier type must be either Grammar or Meaning")
-
 
   def _decode_record(record, name_to_features):
     """Decodes a record to a TensorFlow example."""
@@ -172,7 +161,10 @@ def file_based_input_fn_builder(input_file, max_seq_length,
   return input_fn
 
 
-def _calculate_steps(num_examples, batch_size, num_epochs, warmup_proportion=0):
+def _calculate_steps(num_examples,
+                     batch_size,
+                     num_epochs,
+                     warmup_proportion=0):
   """Calculates the number of steps.
 
   Args:
@@ -193,8 +185,9 @@ def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   if not (FLAGS.do_train or FLAGS.do_eval or FLAGS.do_export):
-    raise ValueError("At least one of `do_train`, `do_eval` or `do_export` must"
-                     " be True.")
+    raise ValueError(
+        "At least one of `do_train`, `do_eval` or `do_export` must"
+        " be True.")
 
   model_config = run_classifier_utils.LaserTaggerConfig.from_json_file(
       FLAGS.model_config_file)
@@ -223,8 +216,8 @@ def main(_):
       tpu_config=tf.contrib.tpu.TPUConfig(
           iterations_per_loop=FLAGS.iterations_per_loop,
           per_host_input_for_training=is_per_host,
-          eval_training_input_configuration=tf.contrib.tpu.InputPipelineConfig
-          .SLICED))
+          eval_training_input_configuration=tf.contrib.tpu.InputPipelineConfig.
+          SLICED))
 
   if FLAGS.do_train:
     num_train_steps, num_warmup_steps = _calculate_steps(
@@ -260,7 +253,7 @@ def main(_):
         input_file=FLAGS.training_file,
         max_seq_length=FLAGS.max_seq_length,
         is_training=True,
-        drop_remainder=True, 
+        drop_remainder=True,
         classifier_type=FLAGS.classifier_type)
     estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
 
@@ -285,41 +278,44 @@ def main(_):
 
     for ckpt in tf.contrib.training.checkpoints_iterator(
         FLAGS.output_dir, timeout=FLAGS.eval_timeout):
-      result = estimator.evaluate(input_fn=eval_input_fn, checkpoint_path=ckpt,
+      result = estimator.evaluate(input_fn=eval_input_fn,
+                                  checkpoint_path=ckpt,
                                   steps=eval_steps)
       for key in sorted(result):
         tf.logging.info("  %s = %s", key, str(result[key]))
 
   if FLAGS.do_export:
     tf.logging.info("Exporting the model...")
+
     def serving_input_fn():
       def _input_fn():
         if FLAGS.classifier_type == "Meaning":
           features = {
-            "input_ids_source": tf.placeholder(tf.int64, [None, None]),
-            "input_mask_source": tf.placeholder(tf.int64, [None, None]),
-            "segment_ids_source": tf.placeholder(tf.int64, [None, None]),
-            "input_ids_summary": tf.placeholder(tf.int64, [None, None]),
-            "input_mask_summary": tf.placeholder(tf.int64, [None, None]),
-            "segment_ids_summary": tf.placeholder(tf.int64, [None, None])
-           }
+              "input_ids_source": tf.placeholder(tf.int64, [None, None]),
+              "input_mask_source": tf.placeholder(tf.int64, [None, None]),
+              "segment_ids_source": tf.placeholder(tf.int64, [None, None]),
+              "input_ids_summary": tf.placeholder(tf.int64, [None, None]),
+              "input_mask_summary": tf.placeholder(tf.int64, [None, None]),
+              "segment_ids_summary": tf.placeholder(tf.int64, [None, None])
+          }
         elif FLAGS.classifier_type == "Grammar":
           features = {
-            "input_ids": tf.placeholder(tf.int64, [None, None]),
-            "input_mask": tf.placeholder(tf.int64, [None, None]),
-            "segment_ids": tf.placeholder(tf.int64, [None, None]),
-          }        
+              "input_ids": tf.placeholder(tf.int64, [None, None]),
+              "input_mask": tf.placeholder(tf.int64, [None, None]),
+              "segment_ids": tf.placeholder(tf.int64, [None, None]),
+          }
         else:
-            raise ValueError("Classifier type must be either Grammar or Meaning.")
-            
+          raise ValueError(
+              "Classifier type must be either Grammar or Meaning.")
+
         return tf.estimator.export.ServingInputReceiver(
             features=features, receiver_tensors=features)
+
       return _input_fn
 
-    estimator.export_saved_model(
-        FLAGS.export_path,
-        serving_input_fn(),
-        checkpoint_path=FLAGS.init_checkpoint)
+    estimator.export_saved_model(FLAGS.export_path,
+                                 serving_input_fn(),
+                                 checkpoint_path=FLAGS.init_checkpoint)
 
 
 if __name__ == "__main__":

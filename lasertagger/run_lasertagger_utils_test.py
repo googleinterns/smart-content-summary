@@ -14,14 +14,10 @@
 # limitations under the License.
 
 # Lint as: python3
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 from absl.testing import parameterized
-
 import run_lasertagger_utils
-
 import tensorflow as tf
 
 
@@ -42,20 +38,18 @@ def _get_model_builder(use_t2t_decoder=True):
       "use_full_attention": False,
   }
   config = run_lasertagger_utils.LaserTaggerConfig(**config_json)
-  return run_lasertagger_utils.ModelFnBuilder(
-      config=config,
-      num_tags=2,
-      init_checkpoint=None,
-      learning_rate=1e-4,
-      num_train_steps=10,
-      num_warmup_steps=1,
-      use_tpu=False,
-      use_one_hot_embeddings=False,
-      max_seq_length=128)
+  return run_lasertagger_utils.ModelFnBuilder(config=config,
+                                              num_tags=2,
+                                              init_checkpoint=None,
+                                              learning_rate=1e-4,
+                                              num_train_steps=10,
+                                              num_warmup_steps=1,
+                                              use_tpu=False,
+                                              use_one_hot_embeddings=False,
+                                              max_seq_length=128)
 
 
 class RunLasertaggerUtilsTest(tf.test.TestCase, parameterized.TestCase):
-
   def setUp(self):
     super(RunLasertaggerUtilsTest, self).setUp()
     self._features = {
@@ -65,8 +59,10 @@ class RunLasertaggerUtilsTest(tf.test.TestCase, parameterized.TestCase):
         "labels": [[0, 0, 1, 0, 0]],
         "labels_mask": [[0, 1, 1, 0, 0]],
     }
-    self._features = {k: tf.convert_to_tensor(v)
-                      for (k, v) in self._features.items()}
+    self._features = {
+        k: tf.convert_to_tensor(v)
+        for (k, v) in self._features.items()
+    }
 
   @parameterized.parameters(True, False)
   def test_create_model(self, use_t2t_decoder):
@@ -78,9 +74,10 @@ class RunLasertaggerUtilsTest(tf.test.TestCase, parameterized.TestCase):
     labels_mask = tf.constant([[0, 1, 1, 0, 0]], dtype=tf.int64)
 
     model_fn_builder = _get_model_builder(use_t2t_decoder)
-    (loss, _, pred) = model_fn_builder._create_model(
-        tf.estimator.ModeKeys.TRAIN, input_ids, input_mask, segment_ids, labels,
-        labels_mask)
+    (loss, _,
+     pred) = model_fn_builder._create_model(tf.estimator.ModeKeys.TRAIN,
+                                            input_ids, input_mask, segment_ids,
+                                            labels, labels_mask)
 
     with self.test_session() as sess:
       sess.run(tf.global_variables_initializer())
@@ -93,14 +90,15 @@ class RunLasertaggerUtilsTest(tf.test.TestCase, parameterized.TestCase):
     with self.session() as sess:
       model_fn_builder = _get_model_builder()
       model_fn = model_fn_builder.build()
-      output_spec = model_fn(
-          self._features,
-          labels=None,
-          mode=tf.estimator.ModeKeys.TRAIN,
-          params=None)
+      output_spec = model_fn(self._features,
+                             labels=None,
+                             mode=tf.estimator.ModeKeys.TRAIN,
+                             params=None)
 
-      sess.run([tf.global_variables_initializer(),
-                tf.local_variables_initializer()])
+      sess.run([
+          tf.global_variables_initializer(),
+          tf.local_variables_initializer()
+      ])
       loss = sess.run(output_spec.loss)
       self.assertAllEqual(loss.shape, [])
 
@@ -108,17 +106,18 @@ class RunLasertaggerUtilsTest(tf.test.TestCase, parameterized.TestCase):
     with self.session() as sess:
       model_fn_builder = _get_model_builder()
       model_fn = model_fn_builder.build()
-      output_spec = model_fn(
-          self._features,
-          labels=None,
-          mode=tf.estimator.ModeKeys.EVAL,
-          params=None)
+      output_spec = model_fn(self._features,
+                             labels=None,
+                             mode=tf.estimator.ModeKeys.EVAL,
+                             params=None)
       metric_fn = output_spec.eval_metrics[0]
       metric_fn_args = output_spec.eval_metrics[1]
       self.assertLen(metric_fn_args, 4)
       metrics = metric_fn(*metric_fn_args)
-      sess.run([tf.global_variables_initializer(),
-                tf.local_variables_initializer()])
+      sess.run([
+          tf.global_variables_initializer(),
+          tf.local_variables_initializer()
+      ])
 
       def check_metric_shape(metric):
         val_node, update_op = metric

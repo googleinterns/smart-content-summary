@@ -16,20 +16,14 @@
 # Lint as: python3
 """Compute realized predictions for a dataset."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from absl import app
-from absl import flags
-from absl import logging
-
+from absl import app, flags, logging
 import bert_example
 import predict_utils
 import tagging_converter
-import utils
-
 import tensorflow as tf
+import utils
 
 FLAGS = flags.FLAGS
 
@@ -37,9 +31,8 @@ flags.DEFINE_string(
     'input_file', None,
     'Path to the input file containing examples for which to compute '
     'predictions.')
-flags.DEFINE_enum(
-    'input_format', None, ['wikisplit', 'discofuse'],
-    'Format which indicates how to parse the input_file.')
+flags.DEFINE_enum('input_format', None, ['wikisplit', 'discofuse'],
+                  'Format which indicates how to parse the input_file.')
 flags.DEFINE_string(
     'output_file', None,
     'Path to the TSV file where the predictions are written to.')
@@ -81,8 +74,8 @@ def main(argv):
 
   num_predicted = 0
   with tf.gfile.Open(FLAGS.output_file, 'w') as writer:
-    for i, (sources, target) in enumerate(utils.yield_sources_and_targets(
-        FLAGS.input_file, FLAGS.input_format)):
+    for i, (sources, target) in enumerate(
+        utils.yield_sources_and_targets(FLAGS.input_file, FLAGS.input_format)):
       logging.log_every_n(
           logging.INFO,
           f'{i} examples processed, {num_predicted} converted to tf.Example.',

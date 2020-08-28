@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
-
 """Testing for custom_utils.py."""
 
 import unittest
@@ -21,10 +20,10 @@ import custom_utils
 
 
 class CustomUtilsTestCase(TestCase):
-    def test_convert_to_pos(self):
-        result = custom_utils.convert_to_pos("This is a test string".split())
-        self.assertEqual(result, [5, 33, 5, 14, 14])
+  def test_convert_to_pos(self):
+    result = custom_utils.convert_to_pos("This is a test string".split())
+    self.assertEqual(result, [5, 33, 5, 14, 14])
 
 
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()

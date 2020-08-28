@@ -1,39 +1,31 @@
-# coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Build BERT Examples from text (source, target) pairs."""
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import collections
 
 from bert import tokenization
-import tagging
-import tagging_converter
-import tensorflow as tf
-from typing import Mapping, MutableSequence, Optional, Sequence, Text
-
-import nltk
 import custom_utils
+import tagging
+import tensorflow as tf
 
 POS_START_TAG = 2
 POS_END_TAG = 41
 POS_CONCISE_END_TAG = 16
+
 
 class BertExample(object):
   """Class for training and inference examples for BERT.
@@ -43,17 +35,12 @@ class BertExample(object):
       when realizing labels predicted for this example.
     features: Feature dictionary.
   """
-
-  def __init__(self, input_ids,
-               input_mask,
-               segment_ids, labels,
-               labels_mask,
-               token_start_indices,
-               task, default_label, embedding_type):
+  def __init__(self, input_ids, input_mask, segment_ids, labels, labels_mask,
+               token_start_indices, task, default_label, embedding_type):
     input_len = len(input_ids)
-    
-    if not (input_len == len(input_mask) and input_len == len(segment_ids) and
-            input_len == len(labels) and input_len == len(labels_mask)):
+
+    if not (input_len == len(input_mask) and input_len == len(segment_ids)
+            and input_len == len(labels) and input_len == len(labels_mask)):
       raise ValueError(
           'All feature lists should have the same length ({})'.format(
               input_len))
@@ -88,9 +75,9 @@ class BertExample(object):
 
   def to_tf_example(self):
     """Returns this object as a tf.Example."""
-
     def int_feature(values):
-      return tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
+      return tf.train.Feature(int64_list=tf.train.Int64List(
+          value=list(values)))
 
     tf_features = collections.OrderedDict([
         (key, int_feature(val)) for key, val in self.features.items()
@@ -103,8 +90,8 @@ class BertExample(object):
     for idx in self._token_start_indices:
       # For unmasked and untruncated tokens, use the label in the features, and
       # for the truncated tokens, use the default label.
-      if (idx < len(self.features['labels']) and
-          self.features['labels_mask'][idx]):
+      if (idx < len(self.features['labels'])
+          and self.features['labels_mask'][idx]):
         labels.append(self.features['labels'][idx])
       else:
         labels.append(self._default_label)
@@ -113,9 +100,7 @@ class BertExample(object):
 
 class BertExampleBuilder(object):
   """Builder class for BertExample objects."""
-
-  def __init__(self, label_map, vocab_file,
-               max_seq_length, lower_case,
+  def __init__(self, label_map, vocab_file, max_seq_length, lower_case,
                converter, embedding_type, enable_mask):
     """Initializes an instance of BertExampleBuilder.
 
@@ -138,15 +123,15 @@ class BertExampleBuilder(object):
     self._pad_id = self._get_pad_id()
     self._keep_tag_id = self._label_map['KEEP']
     if embedding_type not in ["POS", "Normal", "Sentence", "POS_concise"]:
-        raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence") 
+      raise ValueError(
+          "Embedding_type must be Normal, POS, POS_concise, or Sentence")
     self._embedding_type = embedding_type
 
   def build_bert_example(
       self,
       sources,
-      target = None,
-      use_arbitrary_target_ids_for_infeasible_examples = False
-  ):
+      target=None,
+      use_arbitrary_target_ids_for_infeasible_examples=False):
     """Constructs a BERT Example.
 
     Args:
@@ -168,8 +153,10 @@ class BertExampleBuilder(object):
         if use_arbitrary_target_ids_for_infeasible_examples:
           # Create a tag sequence [KEEP, DELETE, KEEP, DELETE, ...] which is
           # unlikely to be predicted by chance.
-          tags = [tagging.Tag('KEEP') if i % 2 == 0 else tagging.Tag('DELETE')
-                  for i, _ in enumerate(task.source_tokens)]
+          tags = [
+              tagging.Tag('KEEP') if i % 2 == 0 else tagging.Tag('DELETE')
+              for i, _ in enumerate(task.source_tokens)
+          ]
         else:
           return None
     else:
@@ -183,7 +170,7 @@ class BertExampleBuilder(object):
     tokens = self._truncate_list(tokens)
     labels = self._truncate_list(labels)
     if special_tags is not None:
-        special_tags = self._truncate_list(special_tags)
+      special_tags = self._truncate_list(special_tags)
 
     input_tokens = ['[CLS]'] + tokens + ['[SEP]']
     labels_mask = [0] + [1] * len(labels) + [0]
@@ -192,29 +179,28 @@ class BertExampleBuilder(object):
     input_ids = self._tokenizer.convert_tokens_to_ids(input_tokens)
     input_mask = [1] * len(input_ids)
     if self._embedding_type == "Normal":
-        segment_ids = [0] * len(input_ids)
+      segment_ids = [0] * len(input_ids)
     elif self._embedding_type == "POS":
-        segment_ids = [POS_START_TAG] + special_tags + [POS_END_TAG]
+      segment_ids = [POS_START_TAG] + special_tags + [POS_END_TAG]
     elif self._embedding_type == "POS_concise":
-        segment_ids = [POS_START_TAG] + special_tags + [POS_CONCISE_END_TAG]
+      segment_ids = [POS_START_TAG] + special_tags + [POS_CONCISE_END_TAG]
     elif self._embedding_type == "Sentence":
-        segment_ids = [0] + special_tags + [0]
+      segment_ids = [0] + special_tags + [0]
     else:
-        raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence") 
+      raise ValueError(
+          "Embedding_type must be Normal, POS, POS_concise, or Sentence")
 
-    example = BertExample(
-        input_ids=input_ids,
-        input_mask=input_mask,
-        segment_ids=segment_ids,
-        labels=labels,
-        labels_mask=labels_mask,
-        token_start_indices=token_start_indices,
-        task=task,
-        default_label=self._keep_tag_id,
-        embedding_type=self._embedding_type)
+    example = BertExample(input_ids=input_ids,
+                          input_mask=input_mask,
+                          segment_ids=segment_ids,
+                          labels=labels,
+                          labels_mask=labels_mask,
+                          token_start_indices=token_start_indices,
+                          task=task,
+                          default_label=self._keep_tag_id,
+                          embedding_type=self._embedding_type)
     example.pad_to_max_length(self._max_seq_length, self._pad_id)
     return example
-
 
   def _split_to_wordpieces(self, tokens, labels, embedding_type):
     """Splits tokens (and the labels accordingly) to WordPieces.
@@ -240,29 +226,32 @@ class BertExampleBuilder(object):
       pieces = self._tokenizer.tokenize(token)
       bert_tokens.extend(pieces)
       bert_labels.extend([labels[i]] * len(pieces))
-    
+
     if embedding_type == "Normal":
-        return bert_tokens, bert_labels, token_start_indices, None
+      return bert_tokens, bert_labels, token_start_indices, None
     elif embedding_type in ["POS", "POS_concise"]:
-        tokens_pos = custom_utils.convert_to_pos(tokens, pos_type=embedding_type)
-        pos_tags = []
-        for i, token in enumerate(tokens):
-            pieces = self._tokenizer.tokenize(token)
-            pos_tags.extend([tokens_pos[i]] * len(pieces))
-        return bert_tokens, bert_labels, token_start_indices, pos_tags
+      tokens_pos = custom_utils.convert_to_pos(tokens, pos_type=embedding_type)
+      pos_tags = []
+      for i, token in enumerate(tokens):
+        pieces = self._tokenizer.tokenize(token)
+        pos_tags.extend([tokens_pos[i]] * len(pieces))
+      return bert_tokens, bert_labels, token_start_indices, pos_tags
     elif embedding_type == "Sentence":
-        sentence_tags = []
-        sentence_counter = 0
-        for i, token in enumerate(tokens):
-            pieces = self._tokenizer.tokenize(token)
-            for piece in pieces:
-                sentence_tags.extend([sentence_counter])
-                if piece in [".", ",", ";", "!", "?", ":", 
-                               "##.", "##,", "##;", "##!", "##?", "##:"]:
-                    sentence_counter = 1 - sentence_counter
-        return bert_tokens, bert_labels, token_start_indices, sentence_tags
+      sentence_tags = []
+      sentence_counter = 0
+      for i, token in enumerate(tokens):
+        pieces = self._tokenizer.tokenize(token)
+        for piece in pieces:
+          sentence_tags.extend([sentence_counter])
+          if piece in [
+              ".", ",", ";", "!", "?", ":", "##.", "##,", "##;", "##!", "##?",
+              "##:"
+          ]:
+            sentence_counter = 1 - sentence_counter
+      return bert_tokens, bert_labels, token_start_indices, sentence_tags
     else:
-        raise ValueError("Embedding_type must be Normal, POS, POS_concise, or Sentence")
+      raise ValueError(
+          "Embedding_type must be Normal, POS, POS_concise, or Sentence")
 
   def _truncate_list(self, x):
     """Returns truncated version of x according to the self._max_seq_length."""

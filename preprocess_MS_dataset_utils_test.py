@@ -19,32 +19,35 @@ from unittest import TestCase
 from preprocess_MS_dataset_utils import process_row
 
 
-class PreprocessMSDatasetUtilsTest(TestCase):    
-    def test_process_row_without_excluded_sample(self):
-        row = ["PlaceHolder ||| PlaceHolder ||| OriginalSentence ||| " 
-               "Summary1 ||| 6 ||| 6 ||| 6 ||| Most important meaning Flawless language "
-               "||| Summary2 ||| 7 ||| 7 ||| 7 ||| Most important meaning Minor errors"]
-        output_original_sentence, output_shortened_sentences_list, \
-        output_shortened_ratings_list, count_excluded = process_row(row)
-        
-        self.assertEqual(output_original_sentence, 'OriginalSentence')
-        self.assertEqual(output_shortened_sentences_list, ['Summary1', 'Summary2'])
-        self.assertEqual(output_shortened_ratings_list, [['6'], ['7']])
-        self.assertEqual(count_excluded, 0)
-    
-    
-    def test_process_row_with_excluded_sample(self):
-        row = ["PlaceHolder ||| PlaceHolder ||| OriginalSentence ||| " 
-               "Summary1 ||| 7 ||| 7 ||| 7 ||| Most important meaning Minor errors "
-               "||| Summary2 ||| 9 ||| 9 ||| 9 ||| Most important meaning Disfluent or incomprehensible"]
-        output_original_sentence, output_shortened_sentences_list, \
-        output_shortened_ratings_list, count_excluded = process_row(row)
-        
-        self.assertEqual(output_original_sentence, 'OriginalSentence')
-        self.assertEqual(output_shortened_sentences_list, ['Summary1'])
-        self.assertEqual(output_shortened_ratings_list, [['7']])
-        self.assertEqual(count_excluded, 1)
+class PreprocessMSDatasetUtilsTest(TestCase):
+  def test_process_row_without_excluded_sample(self):
+    row = [
+        "PlaceHolder ||| PlaceHolder ||| OriginalSentence ||| "
+        "Summary1 ||| 6 ||| 6 ||| 6 ||| Most important meaning Flawless language "
+        "||| Summary2 ||| 7 ||| 7 ||| 7 ||| Most important meaning Minor errors"
+    ]
+    output_original_sentence, output_shortened_sentences_list, \
+    output_shortened_ratings_list, count_excluded = process_row(row)
 
-        
+    self.assertEqual(output_original_sentence, 'OriginalSentence')
+    self.assertEqual(output_shortened_sentences_list, ['Summary1', 'Summary2'])
+    self.assertEqual(output_shortened_ratings_list, [['6'], ['7']])
+    self.assertEqual(count_excluded, 0)
+
+  def test_process_row_with_excluded_sample(self):
+    row = [
+        "PlaceHolder ||| PlaceHolder ||| OriginalSentence ||| "
+        "Summary1 ||| 7 ||| 7 ||| 7 ||| Most important meaning Minor errors "
+        "||| Summary2 ||| 9 ||| 9 ||| 9 ||| Most important meaning Disfluent or incomprehensible"
+    ]
+    output_original_sentence, output_shortened_sentences_list, \
+    output_shortened_ratings_list, count_excluded = process_row(row)
+
+    self.assertEqual(output_original_sentence, 'OriginalSentence')
+    self.assertEqual(output_shortened_sentences_list, ['Summary1'])
+    self.assertEqual(output_shortened_ratings_list, [['7']])
+    self.assertEqual(count_excluded, 1)
+
+
 if __name__ == '__main__':
-    unittest.main()
+  unittest.main()

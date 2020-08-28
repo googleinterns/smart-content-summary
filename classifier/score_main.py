@@ -1,4 +1,4 @@
- # Copyright 2020 Google LLC
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,39 +15,43 @@
 
 import argparse
 import csv
-from score_utils import calculate_recall_precision
 import os
 
 import numpy as np
+from score_utils import calculate_recall_precision
 
 
 def main(file_path):
-    targets = []
-    predictions = []
-    with open(file_path) as f: 
-        read_tsv = csv.reader(f, delimiter="\t")
-        for line in read_tsv:
-            targets.append(int(line[-1]))
-            predictions.append(int(line[-2]))
-    
-    number_of_samples = len(predictions)
-    targets = np.array(targets)
-    predictions = np.array(predictions)
-    overall_accuracy = np.sum(np.equal(targets, predictions))/number_of_samples
-    print("Accuracy: {:.4f}".format(overall_accuracy)) 
-    
-    for category in np.unique(targets):
-        precision, recall, f1 = calculate_recall_precision(predictions, targets, 
-                                                            category)
-        print("----- For category", category, "-----")
-        print("Precision is {:.4f}".format(precision))
-        print("Recall is {:.4f}".format(recall))
-        print("F1 is {:.4f}".format(f1))
-    
+  """Calculate overall accuracy and accuracy by category for the classifier.
+
+  Args:
+    file_path: path to the tsv file with prediction results.
+  """
+  targets = []
+  predictions = []
+  with open(file_path) as f:
+    read_tsv = csv.reader(f, delimiter="\t")
+    for line in read_tsv:
+      targets.append(int(line[-1]))
+      predictions.append(int(line[-2]))
+
+  number_of_samples = len(predictions)
+  targets = np.array(targets)
+  predictions = np.array(predictions)
+  overall_accuracy = np.sum(np.equal(targets, predictions)) / number_of_samples
+  print("Accuracy: {:.4f}".format(overall_accuracy))
+
+  for category in np.unique(targets):
+    precision, recall, f1 = calculate_recall_precision(predictions, targets,
+                                                       category)
+    print("----- For category", category, "-----")
+    print("Precision is {:.4f}".format(precision))
+    print("Recall is {:.4f}".format(recall))
+    print("F1 is {:.4f}".format(f1))
+
 
 if __name__ == "__main__":
-    """
-    Calculate overall accuracy and accuracy by category for the classifier.
+  """Calculate overall accuracy and accuracy by category for the classifier.
     
     usage: score_main.py [-h] pred_file
 
@@ -57,13 +61,13 @@ if __name__ == "__main__":
     optional arguments:
      -h, --help  show this help message and exit
     """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("pred_file", help="Absolute path to the prediction file.")    
-    arguments = parser.parse_args()
-    
-    pred_file_path = os.path.expanduser(arguments.pred_file)
-    if not os.path.isfile(pred_file_path):
-        raise ValueError("Cannot find the prediction file.")
-        
-    main(pred_file_path)
+  parser = argparse.ArgumentParser()
+  parser.add_argument("pred_file",
+                      help="Absolute path to the prediction file.")
+  arguments = parser.parse_args()
 
+  pred_file_path = os.path.expanduser(arguments.pred_file)
+  if not os.path.isfile(pred_file_path):
+    raise ValueError("Cannot find the prediction file.")
+
+  main(pred_file_path)

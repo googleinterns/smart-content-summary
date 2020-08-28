@@ -1,36 +1,29 @@
-# coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Lint as: python3
 """Utilities for building a LaserTagger TF model."""
 
-from __future__ import absolute_import
-from __future__ import division
+from __future__ import absolute_import, division, print_function
 
-from __future__ import print_function
-from typing import Any, Mapping, Optional, Text
-from bert import modeling
-from bert import optimization
-import transformer_decoder
-import tensorflow as tf
-from official_transformer import model_params
+from bert import modeling, optimization
 import numpy as np
+from official_transformer import model_params
+import tensorflow as tf
+import transformer_decoder
+
 
 class LaserTaggerConfig(modeling.BertConfig):
   """Model configuration for LaserTagger."""
-
   def __init__(self,
                use_t2t_decoder=True,
                decoder_num_hidden_layers=1,
@@ -66,15 +59,12 @@ class LaserTaggerConfig(modeling.BertConfig):
 
 class ModelFnBuilder(object):
   """Class for building `model_fn` closure for TPUEstimator."""
-
-  def __init__(self, config, num_tags,
-               init_checkpoint,
-               learning_rate, num_train_steps,
-               num_warmup_steps, use_tpu,
-               use_one_hot_embeddings, max_seq_length,        
+  def __init__(self, config, num_tags, init_checkpoint, learning_rate,
+               num_train_steps, num_warmup_steps, use_tpu,
+               use_one_hot_embeddings, max_seq_length,
                verb_deletion_loss_weight, verb_tags, delete_tags,
-              relative_loss_weight, smallest_add_tag, delete_tags_ids,
-              keep_tags_ids):
+               relative_loss_weight, smallest_add_tag, delete_tags_ids,
+               keep_tags_ids):
     """Initializes an instance of a LaserTagger model.
 
     Args:
@@ -104,21 +94,20 @@ class ModelFnBuilder(object):
     self._use_one_hot_embeddings = use_one_hot_embeddings
     self._max_seq_length = max_seq_length
     self._verb_deletion_loss_weight = verb_deletion_loss_weight
-    self._verb_tags = verb_tags    
-    
+    self._verb_tags = verb_tags
+
     if self._config.use_t2t_decoder:
-        self._delete_tags = np.insert(delete_tags, 0, [0, 0], axis=0)
-        self._smallest_add_tags_ids = smallest_add_tag + 2
-        self._delete_tags_ids = np.unique(np.array(delete_tags_ids) + 2)
-        self._keep_tags_ids = np.unique(np.array(keep_tags_ids) + 2)
-    else:        
-        self._delete_tags = delete_tags
-        self._smallest_add_tags_ids = smallest_add_tag
-        self._delete_tags_ids = delete_tags_ids
-        self._keep_tags_ids = keep_tags_ids
-    
+      self._delete_tags = np.insert(delete_tags, 0, [0, 0], axis=0)
+      self._smallest_add_tags_ids = smallest_add_tag + 2
+      self._delete_tags_ids = np.unique(np.array(delete_tags_ids) + 2)
+      self._keep_tags_ids = np.unique(np.array(keep_tags_ids) + 2)
+    else:
+      self._delete_tags = delete_tags
+      self._smallest_add_tags_ids = smallest_add_tag
+      self._delete_tags_ids = delete_tags_ids
+      self._keep_tags_ids = keep_tags_ids
+
     self._add_weight, self._keep_weight, self._delete_weight = relative_loss_weight
-    
 
   def _create_model(self, mode, input_ids, input_mask, segment_ids, labels,
                     labels_mask):
@@ -157,58 +146,71 @@ class ModelFnBuilder(object):
       loss = None
       per_example_loss = None
       if mode != tf.estimator.ModeKeys.PREDICT:
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=labels, logits=logits)
+        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,
+                                                              logits=logits)
 
         if self._verb_tags is not None and self._verb_deletion_loss_weight != 0:
-            logits_tensor_shape_as_list = logits.get_shape().as_list()
-            batch_size, token_length, number_of_tags = logits_tensor_shape_as_list[0:3]
-        
-            verb_mask = tf.constant(0.0, dtype="float32", shape=segment_ids.get_shape())
-            for verb_tag in self._verb_tags:
-                verb_mask = tf.math.add(
-                    tf.cast(tf.math.equal(tf.constant(verb_tag, dtype="int32"), segment_ids), tf.float32), 
-                    verb_mask)
-            
-            delete_tags = self._delete_tags
-            delete_tags = np.repeat(delete_tags[np.newaxis, :], token_length, axis=0)
-            delete_tags = np.repeat(delete_tags[np.newaxis,:, :], batch_size, axis=0)
-            delete_tags_tensor = tf.constant(delete_tags, dtype="float32")
-            
-            delete_probability = tf.math.divide(
-                tf.reduce_sum(tf.math.multiply(delete_tags_tensor, logits), 2), 
-                tf.reduce_sum(logits, 2))
-            
-            delete_loss = tf.math.scalar_mul(
-                tf.constant(self._verb_deletion_loss_weight, dtype="float32"), 
-                tf.math.multiply(delete_probability, verb_mask))
-            
-            # new loss = loss * (1 + delete_loss)
-            loss = tf.math.multiply(
-                loss, 
-                tf.math.add(
-                    tf.constant(1.0, dtype="float32", shape=delete_loss.get_shape()), 
-                    delete_loss)
-            )
-        
-    
+          logits_tensor_shape_as_list = logits.get_shape().as_list()
+          batch_size, token_length, number_of_tags = logits_tensor_shape_as_list[
+              0:3]
+
+          verb_mask = tf.constant(0.0,
+                                  dtype="float32",
+                                  shape=segment_ids.get_shape())
+          for verb_tag in self._verb_tags:
+            verb_mask = tf.math.add(
+                tf.cast(
+                    tf.math.equal(tf.constant(verb_tag, dtype="int32"),
+                                  segment_ids), tf.float32), verb_mask)
+
+          delete_tags = self._delete_tags
+          delete_tags = np.repeat(delete_tags[np.newaxis, :],
+                                  token_length,
+                                  axis=0)
+          delete_tags = np.repeat(delete_tags[np.newaxis, :, :],
+                                  batch_size,
+                                  axis=0)
+          delete_tags_tensor = tf.constant(delete_tags, dtype="float32")
+
+          delete_probability = tf.math.divide(
+              tf.reduce_sum(tf.math.multiply(delete_tags_tensor, logits), 2),
+              tf.reduce_sum(logits, 2))
+
+          delete_loss = tf.math.scalar_mul(
+              tf.constant(self._verb_deletion_loss_weight, dtype="float32"),
+              tf.math.multiply(delete_probability, verb_mask))
+
+          # new loss = loss * (1 + delete_loss)
+          loss = tf.math.multiply(
+              loss,
+              tf.math.add(
+                  tf.constant(1.0,
+                              dtype="float32",
+                              shape=delete_loss.get_shape()), delete_loss))
+
         # Adjust loss using weights of different edits (add, delete, keep)
         if self._add_weight != 1:
-            add_label_mask = tf.cast(tf.math.greater_equal(
-                tf.constant(self._smallest_add_tags_ids, dtype="int32"),labels), tf.float32
-            
-            add_loss_weight = tf.math.scalar_mul(tf.constant(self._add_weight - 1, dtype="float32"), 
-                                                 add_label_mask)
-            loss = tf.math.multiply(
-                loss, 
-                tf.math.add(
-                tf.constant(1.0, dtype="float32", shape=add_loss_weight.get_shape()), 
-                add_loss_weight)
-            )
+          add_label_mask = tf.cast(
+              tf.math.greater_equal(
+                  tf.constant(self._smallest_add_tags_ids, dtype="int32"),
+                  labels), tf.float32)
 
-        loss = _update_loss_with_weight(loss, self._keep_weight, self._keep_tags_ids, labels)
-        loss = _update_loss_with_weight(loss, self._delete_weight, self._delete_tags_ids, labels)            
-        
+          add_loss_weight = tf.math.scalar_mul(
+              tf.constant(self._add_weight - 1, dtype="float32"),
+              add_label_mask)
+          loss = tf.math.multiply(
+              loss,
+              tf.math.add(
+                  tf.constant(1.0,
+                              dtype="float32",
+                              shape=add_loss_weight.get_shape()),
+                  add_loss_weight))
+
+        loss = _update_loss_with_weight(loss, self._keep_weight,
+                                        self._keep_tags_ids, labels)
+        loss = _update_loss_with_weight(loss, self._delete_weight,
+                                        self._delete_tags_ids, labels)
+
         per_example_loss = tf.truediv(
             tf.reduce_sum(loss, axis=1),
             tf.dtypes.cast(tf.reduce_sum(labels_mask, axis=1), tf.float32))
@@ -224,11 +226,9 @@ class ModelFnBuilder(object):
           pred = tf.cast(tf.argmax(logits, axis=-1), tf.int32)
 
       return (loss, per_example_loss, pred)
-        
-    
+
   def build(self):
     """Returns `model_fn` closure for TPUEstimator."""
-
     def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
       """The `model_fn` for TPUEstimator."""
 
@@ -250,19 +250,22 @@ class ModelFnBuilder(object):
           labels = features["labels"]
         labels_mask = tf.cast(features["labels_mask"], tf.float32)
 
-      (total_loss, per_example_loss, predictions) = self._create_model(
-          mode, input_ids, input_mask, segment_ids, labels, labels_mask)
+      (total_loss, per_example_loss,
+       predictions) = self._create_model(mode, input_ids, input_mask,
+                                         segment_ids, labels, labels_mask)
 
       tvars = tf.trainable_variables()
       initialized_variable_names = {}
       scaffold_fn = None
       if self._init_checkpoint:
         (assignment_map, initialized_variable_names
-        ) = modeling.get_assignment_map_from_checkpoint(tvars,
-                                                        self._init_checkpoint)
+         ) = modeling.get_assignment_map_from_checkpoint(
+             tvars, self._init_checkpoint)
         if self._use_tpu:
+
           def tpu_scaffold():
-            tf.train.init_from_checkpoint(self._init_checkpoint, assignment_map)
+            tf.train.init_from_checkpoint(self._init_checkpoint,
+                                          assignment_map)
             return tf.train.Scaffold()
 
           scaffold_fn = tpu_scaffold
@@ -281,25 +284,25 @@ class ModelFnBuilder(object):
 
       output_spec = None
       if mode == tf.estimator.ModeKeys.TRAIN:
-        train_op = optimization.create_optimizer(
-            total_loss, self._learning_rate, self._num_train_steps,
-            self._num_warmup_steps, self._use_tpu)
+        train_op = optimization.create_optimizer(total_loss,
+                                                 self._learning_rate,
+                                                 self._num_train_steps,
+                                                 self._num_warmup_steps,
+                                                 self._use_tpu)
 
-        output_spec = tf.contrib.tpu.TPUEstimatorSpec(
-            mode=mode,
-            loss=total_loss,
-            train_op=train_op,
-            scaffold_fn=scaffold_fn)
+        output_spec = tf.contrib.tpu.TPUEstimatorSpec(mode=mode,
+                                                      loss=total_loss,
+                                                      train_op=train_op,
+                                                      scaffold_fn=scaffold_fn)
 
       elif mode == tf.estimator.ModeKeys.EVAL:
+
         def metric_fn(per_example_loss, labels, labels_mask, predictions):
           """Compute eval metrics."""
           accuracy = tf.cast(
-              tf.reduce_all(
-                  tf.logical_or(
-                      tf.equal(labels, predictions),
-                      ~tf.cast(labels_mask, tf.bool)),
-                  axis=1), tf.float32)
+              tf.reduce_all(tf.logical_or(tf.equal(labels, predictions),
+                                          ~tf.cast(labels_mask, tf.bool)),
+                            axis=1), tf.float32)
           return {
               # This is equal to the Exact score if the final realization step
               # doesn't introduce errors.
@@ -316,16 +319,15 @@ class ModelFnBuilder(object):
             scaffold_fn=scaffold_fn)
       else:
         output_spec = tf.contrib.tpu.TPUEstimatorSpec(
-            mode=mode, predictions={"pred": predictions},
+            mode=mode,
+            predictions={"pred": predictions},
             scaffold_fn=scaffold_fn)
       return output_spec
 
     return model_fn
 
 
-def _get_decoder_params(config, use_tpu,
-                        max_seq_length,
-                        output_vocab_size):
+def _get_decoder_params(config, use_tpu, max_seq_length, output_vocab_size):
   """Returns hyperparameters for TransformerDecoder.
 
   Args:
@@ -353,7 +355,7 @@ def _get_decoder_params(config, use_tpu,
 
 
 def _update_loss_with_weight(loss, weight, filter_labels, labels):
-    """ Returns loss adjusted with weights.
+  """ Returns loss adjusted with weights.
     
     Args:
       loss: original loss before weighting
@@ -364,19 +366,22 @@ def _update_loss_with_weight(loss, weight, filter_labels, labels):
     Returns:
       Updated loss
     """
-    if weight == 1:
-        return loss
-    else:
-        filter_label_mask = tf.constant(0.0, dtype="float32", shape=labels.get_shape())
-        for filter_label in filter_labels:
-            filter_label_mask = tf.math.add(
-                tf.cast(tf.math.equal(tf.constant(filter_label, dtype="int32"), labels), tf.float32), 
-                filter_label_mask)
-        loss_weight = tf.math.scalar_mul(tf.constant(weight - 1, dtype="float32"), filter_label_mask)
-        new_loss = tf.math.multiply(
-            loss, 
-            tf.math.add(
-            tf.constant(1.0, dtype="float32", shape=loss_weight.get_shape()), 
-            loss_weight)
-        )
-        return new_loss
+  if weight == 1:
+    return loss
+  else:
+    filter_label_mask = tf.constant(0.0,
+                                    dtype="float32",
+                                    shape=labels.get_shape())
+    for filter_label in filter_labels:
+      filter_label_mask = tf.math.add(
+          tf.cast(
+              tf.math.equal(tf.constant(filter_label, dtype="int32"), labels),
+              tf.float32), filter_label_mask)
+    loss_weight = tf.math.scalar_mul(tf.constant(weight - 1, dtype="float32"),
+                                     filter_label_mask)
+    new_loss = tf.math.multiply(
+        loss,
+        tf.math.add(
+            tf.constant(1.0, dtype="float32", shape=loss_weight.get_shape()),
+            loss_weight))
+    return new_loss

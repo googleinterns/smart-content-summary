@@ -1,35 +1,26 @@
-# coding=utf-8
-# Copyright 2019 The Google Research Authors.
+# Copyright 2020 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# Lint as: python3
 """Compute realized predictions for a dataset."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from absl import app
-from absl import flags
-from absl import logging
-
+from absl import app, flags, logging
 import bert_example
 import predict_utils
 import tagging_converter
-import utils
-
 import tensorflow as tf
+import utils
 
 FLAGS = flags.FLAGS
 
@@ -37,9 +28,8 @@ flags.DEFINE_string(
     'input_file', None,
     'Path to the input file containing examples for which to compute '
     'predictions.')
-flags.DEFINE_enum(
-    'input_format', None, ['wikisplit', 'discofuse'],
-    'Format which indicates how to parse the input_file.')
+flags.DEFINE_enum('input_format', None, ['wikisplit', 'discofuse'],
+                  'Format which indicates how to parse the input_file.')
 flags.DEFINE_string(
     'output_file', None,
     'Path to the TSV file where the predictions are written to.')
@@ -56,16 +46,18 @@ flags.DEFINE_bool(
     'models and False for cased models.')
 flags.DEFINE_bool('enable_swap_tag', True, 'Whether to enable the SWAP tag.')
 flags.DEFINE_string('saved_model', None, 'Path to an exported TF model.')
-flags.DEFINE_string('embedding_type', None, 'Types of segment id embedding. If '
-                    'set to Normal, segment id is all zero. If set to Sentence, '
-                    'segment id marks sentences, i.e. 0 for first sentence, 1 for '
-                   'second second, 0 for third sentence, etc. If set to POS, '
-                   'segment id is the Part of Speech tag of each token. '
-                   'If set to POS_concise, segment is is the Part of Speech tags, '
-                   'but the number of tags is smaller than the one for POS embeddings.')
+flags.DEFINE_string(
+    'embedding_type', None, 'Types of segment id embedding. If '
+    'set to Normal, segment id is all zero. If set to Sentence, '
+    'segment id marks sentences, i.e. 0 for first sentence, 1 for '
+    'second second, 0 for third sentence, etc. If set to POS, '
+    'segment id is the Part of Speech tag of each token. '
+    'If set to POS_concise, segment is is the Part of Speech tags, '
+    'but the number of tags is smaller than the one for POS embeddings.')
 flags.DEFINE_bool('enable_masking', False, 'Whether to set digits and symbols'
-                 'to generic type.')
+                  'to generic type.')
 flags.DEFINE_integer('batch_size', 1, 'Batch size of prediction.')
+
 
 def main(argv):
   if len(argv) > 1:
@@ -80,12 +72,13 @@ def main(argv):
 
   if FLAGS.batch_size < 0:
     raise ValueError("batch_size needs to be >= 1.")
-    
+
   if FLAGS.batch_size == 1:
-    logging.info(f'The prediction batch size is 1. Recommend a bigger batch size.')
+    logging.info(
+        f'The prediction batch size is 1. Recommend a bigger batch size.')
   else:
     logging.info(f'The prediction batch size is {FLAGS.batch_size}.')
-    
+
   label_map = utils.read_label_map(FLAGS.label_map_file)
   converter = tagging_converter.TaggingConverter(
       tagging_converter.get_phrase_vocabulary_from_label_map(label_map),
@@ -100,37 +93,37 @@ def main(argv):
       label_map)
 
   num_predicted = 0
-    
-  input_generator = utils.yield_sources_and_targets(FLAGS.input_file, FLAGS.input_format)
+
+  input_generator = utils.yield_sources_and_targets(FLAGS.input_file,
+                                                    FLAGS.input_format)
   all_processed = False
   num_predicted = 0
-  
+
   logging.info("----- Start prediction -----")
   with tf.gfile.Open(FLAGS.output_file, 'w') as writer:
     while not all_processed:
-        batch_sources = []
-        batch_targets = []
-        for i in range(FLAGS.batch_size):
-            try:
-                source, target = next(input_generator)
-                batch_sources.append(source)
-                batch_targets.append(target)
-            except StopIteration:
-                all_processed = True
-        
-        if len(batch_targets) == 0:
-            break
-            
-        predictions = predictor.predict(batch_sources)
-        num_predicted += len(predictions)
-        logging.log_every_n(
-            logging.INFO,
-            f'{num_predicted} predictions made.',
-            max(1, int(100/FLAGS.batch_size)))
-        for i, prediction in enumerate(predictions):
-            writer.write(
-                f'{" ".join(batch_sources[i])}\t{prediction}\t{batch_targets[i]}\n')
-    
+      batch_sources = []
+      batch_targets = []
+      for i in range(FLAGS.batch_size):
+        try:
+          source, target = next(input_generator)
+          batch_sources.append(source)
+          batch_targets.append(target)
+        except StopIteration:
+          all_processed = True
+
+      if len(batch_targets) == 0:
+        break
+
+      predictions = predictor.predict(batch_sources)
+      num_predicted += len(predictions)
+      logging.log_every_n(logging.INFO, f'{num_predicted} predictions made.',
+                          max(1, int(100 / FLAGS.batch_size)))
+      for i, prediction in enumerate(predictions):
+        writer.write(
+            f'{" ".join(batch_sources[i])}\t{prediction}\t{batch_targets[i]}\n'
+        )
+
   logging.info(f'{num_predicted} predictions saved to:\n{FLAGS.output_file}')
 
 

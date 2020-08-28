@@ -19,21 +19,14 @@
 The resulting TFRecord file will be used when training a LaserTagger model.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 from typing import Text
 
-from absl import app
-from absl import flags
-from absl import logging
-
+from absl import app, flags, logging
 import bert_example
-import utils
-
 import tensorflow as tf
+import utils
 
 FLAGS = flags.FLAGS
 
@@ -50,7 +43,7 @@ flags.DEFINE_bool(
     'Whether to lower case the input text. Should be True for uncased '
     'models and False for cased models.')
 flags.DEFINE_string('classifier_type', None, 'The type of classification. '
-                 '["Grammar", "Meaning"]')
+                    '["Grammar", "Meaning"]')
 
 
 def _write_example_count(count: int) -> Text:
@@ -78,20 +71,23 @@ def main(argv):
   flags.mark_flag_as_required("classifier_type")
 
   num_converted = 0
-    
+
   if FLAGS.classifier_type == "Grammar":
     yield_example_fn = utils.yield_sources_and_targets_grammar
   elif FLAGS.classifier_type == "Meaning":
     yield_example_fn = utils.yield_sources_and_targets_meaning
   else:
     raise ValueError("classifier_type must be either Grammar or Meaning")
-    
-  builder = bert_example.BertExampleBuilder(FLAGS.vocab_file,
-                                            FLAGS.max_seq_length,
-                                            FLAGS.do_lower_case,)
-    
+
+  builder = bert_example.BertExampleBuilder(
+      FLAGS.vocab_file,
+      FLAGS.max_seq_length,
+      FLAGS.do_lower_case,
+  )
+
   with tf.io.TFRecordWriter(FLAGS.output_tfrecord) as writer:
-    for i, (sources, target, rating) in enumerate(yield_example_fn(FLAGS.input_file)):
+    for i, (sources, target,
+            rating) in enumerate(yield_example_fn(FLAGS.input_file)):
       logging.log_every_n(
           logging.INFO,
           f'{i} examples processed, {num_converted} converted to tf.Example.',

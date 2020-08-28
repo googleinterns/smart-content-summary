@@ -14,27 +14,22 @@
 # limitations under the License.
 
 # Lint as: python3
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import os
 
 from absl import flags
 from absl.testing import parameterized
-
 import bert_example
+import numpy as np
 import predict_utils
 import tagging_converter
-
-import numpy as np
 import tensorflow as tf
 
 FLAGS = flags.FLAGS
 
 
 class DummyPredictor(object):
-
   def __init__(self, output_ids):
     """Initializes for a dummy predictor that always predicts `output_ids`."""
     self._output_ids = output_ids
@@ -45,7 +40,6 @@ class DummyPredictor(object):
 
 
 class PredictUtilsTest(parameterized.TestCase):
-
   def setUp(self):
     super(PredictUtilsTest, self).setUp()
 
@@ -58,8 +52,9 @@ class PredictUtilsTest(parameterized.TestCase):
     max_seq_length = 8
     do_lower_case = False
     converter = tagging_converter.TaggingConverter([])
-    self._builder = bert_example.BertExampleBuilder(
-        self._label_map, vocab_file, max_seq_length, do_lower_case, converter)
+    self._builder = bert_example.BertExampleBuilder(self._label_map,
+                                                    vocab_file, max_seq_length,
+                                                    do_lower_case, converter)
 
   @parameterized.parameters(
       {
