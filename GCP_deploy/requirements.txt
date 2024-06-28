@@ -19,5 +19,5 @@ tensorflow-estimator==1.15.1
 termcolor==1.1.0
 Werkzeug==0.16.0
 wrapt==1.11.2
-nltk==3.5
+nltk==3.8.1
 google-api-python-client==1.10.0
