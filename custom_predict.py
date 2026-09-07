@@ -44,7 +44,7 @@ def __download_models(list_of_models):
       print("-------downloading model", model, "-------")
       try:
         os.environ["model_name"] = GCP_BUCKET + model
-        subprocess.call(['gsutil', '-m', 'cp', '-r', GCP_BUCKET + model, "./"],
+        subprocess.call(['gcloud', 'storage', 'cp', '--recursive', GCP_BUCKET + model, "./"],
                         cwd=os.path.expanduser('~'))
       except:
         raise Exception(
