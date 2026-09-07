@@ -112,7 +112,7 @@ to set up a virtual machine on GCP.
 https://docs.google.com/document/d/1PlCB6DOH8LUBsN8UcgPxzds9MqPRFIPs_rht9fWqbAA/edit?usp=sharing) 
 to set up a TPU on GCP. Make sure that your TPU has the same name as your VM. 
 - Download the pre-trained BERT model from sources suggested above. To copy a 
-folder in the GCP bucket to your virtual machine, use the `gsutil cp` command.
+folder in the GCP bucket to your virtual machine, use the `gcloud storage cp` command.
 
 After satisfying the prerequisites, you can run the streamline script 
 [streamline_training.py](streamline_training.py). The usage is 
@@ -281,7 +281,7 @@ saved_model_cli show --dir=output/dir --all
 You should only see one `signature_def['serving_default']` in the output. 
 
 ### 2. Deploy to GCP AI Platform
-First, use the `gsutil cp` command to copy the exported LaserTagger model to a GCP 
+First, use the `gcloud storage cp` command to copy the exported LaserTagger model to a GCP 
 bucket. Then, create a model on the AI platform by running:
 ```
 export MODEL_NAME=lasertagger

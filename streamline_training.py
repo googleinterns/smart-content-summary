@@ -271,19 +271,19 @@ def __training(args):
                         " --eval_file=" + folder_in_bucket + "/tune.tf_record" + \
                         " --use_tpu=true" + \
                         " --tpu_name=" + tpu_name
-    subprocess.call(("gsutil -m cp -r " + output_dir + "/label_map.txt " +
+    subprocess.call(("gcloud storage cp --recursive " + output_dir + "/label_map.txt " +
                      folder_in_bucket + "/").split(),
                     cwd=os.path.expanduser("~"))
-    subprocess.call(("gsutil -m cp -r " + config_file_path + " " +
+    subprocess.call(("gcloud storage cp --recursive " + config_file_path + " " +
                      folder_in_bucket + "/").split(),
                     cwd=os.path.expanduser("~"))
-    subprocess.call(("gsutil -m cp -r " + bert_dir + "/* " + folder_in_bucket +
+    subprocess.call(("gcloud storage cp --recursive " + bert_dir + "/* " + folder_in_bucket +
                      "/bert/").split(),
                     cwd=os.path.expanduser("~"))
-    subprocess.call(("gsutil -m cp -r " + output_dir + "/train.tf_record " +
+    subprocess.call(("gcloud storage cp --recursive " + output_dir + "/train.tf_record " +
                      folder_in_bucket + "/").split(),
                     cwd=os.path.expanduser("~"))
-    subprocess.call(("gsutil -m cp -r " + output_dir + "/tune.tf_record " +
+    subprocess.call(("gcloud storage cp --recursive " + output_dir + "/tune.tf_record " +
                      folder_in_bucket + "/").split(),
                     cwd=os.path.expanduser("~"))
 
@@ -299,7 +299,7 @@ def __training(args):
   subprocess.call(training_command.split(), cwd=lasertagger_dir)
 
   if args.use_tpu:
-    subprocess.call(("gsutil -m cp -r " + folder_in_bucket + "/model " +
+    subprocess.call(("gcloud storage cp --recursive " + folder_in_bucket + "/model " +
                      output_dir).split(),
                     cwd=os.path.expanduser("~"))
 
@@ -319,10 +319,10 @@ def __export_to_bucket():
   """ Export the LaserTagger model to the GCP bucket trained_models_yechen. """
   print("------ Exporting to bucket ------")
   folder_name = output_dir.split("/")[-1]
-  subprocess.call(("gsutil -m cp -r " + output_dir + "/export/export_model " +
+  subprocess.call(("gcloud storage cp --recursive " + output_dir + "/export/export_model " +
                    GCP_BUCKET + folder_name + "/").split(),
                   cwd=os.path.expanduser("~"))
-  subprocess.call(("gsutil -m cp -r " + output_dir + "/label_map.txt " +
+  subprocess.call(("gcloud storage cp --recursive " + output_dir + "/label_map.txt " +
                    GCP_BUCKET + folder_name + "/").split(),
                   cwd=os.path.expanduser("~"))
 
